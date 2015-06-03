@@ -9,7 +9,7 @@ uint8_t initializeLedDriver(void)
     TRISACLR = 0xFF;
     PORTA = 0x00;
 
-   
+ 
     success = 0;
     
 
