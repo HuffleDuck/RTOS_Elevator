@@ -35,7 +35,22 @@ typedef struct DummyListenerTask_parameter {
      QueueHandle_t m_service_request_message_queue; // OUT from "listener" tasks.
 }  DummyListenerTask_parameter;
 
+typedef struct MotorControl_parameter  {
+    QueueHandle_t m_motor_message_queue;
+};
+typedef struct DoorControl_parameter  {
+    QueueHandle_t m_motor_message_queue;
+};
 
+typedef struct _MotorMessage
+{
+	char state[15];
+	int m_time_to_spend_in_accel;
+	int m_time_to_spend_in_cruise;
+	int m_time_to_spend_in_decel;
+	bool m_emer_flag;
+        bool m_start;
+}MotorMessage;
 //////// Global Vars Here/////////////////////////////////////////////////////
 // Cli dumps data here, serviceQueueControlTaskReads it.
 static int NEW_VEL_VALUE;

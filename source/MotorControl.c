@@ -11,6 +11,7 @@
 
 #include <UartDriver.h>
 #include <MotorControl.h>
+#include <TypesAndGlobalVars.h>
 
 const int MAX_SPEED = 20;
 static TaskHandle_t MotorControlTask;
@@ -35,15 +36,7 @@ typedef enum _MOTOR_STATES
 
 } MOTOR_STATES;
 
-typedef struct _State
-{
-	MOTOR_STATES state;
-	int m_time_to_spend_in_accel;
-	int m_time_to_spend_in_cruise;
-	int m_time_to_spend_in_decel;
-	bool m_emer_flag;
-        bool m_start;
-}State;
+
 
 /*************************************************
  * State Machine that
@@ -52,7 +45,7 @@ typedef struct _State
 static void Motor_Control_Task(void *pvParameters)
 {
 	MOTOR_STATES STATE = idle;
-        State temp;
+        MotorMessage temp;
         char char_curr_speed[50];
         char char_curr_distfrom_grnd[50];
         bool start = true;
