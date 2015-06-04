@@ -30,6 +30,24 @@ typedef enum
 	// read this var.
 } service_req;
 
+char [][] SERVICE_REQ
+{
+	"EmergStop",
+	"EmergClear",
+	"DoorInterference",
+	"OpenDoor",
+	"CloseDoor",
+	"CallToGNDInsideCar", // Requests inside the car get priority over requests outside the car.
+	"CallToP1InsideCar",
+	"CallToP2InsideCar",
+	"CallToGNDOutsideCar", //    treat both UART_TX requests for a floor outside a car and CLI
+	"CallToP1fromOutsideCar", //  requests for floor N as requests outside the car.
+	"CallToP2fromOutsideCar",
+	"ChangeMaxSpeedToN", // Before sending this message, update a global var  ChangeMaxAccelToN,
+	"ChangeMaxAccelToN",/
+}
+
+
 typedef struct _MotorMessage
 {
 	char state[15];
