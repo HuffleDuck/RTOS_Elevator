@@ -36,7 +36,7 @@ typedef enum _DoorState
  *  emergency - stays in emergency mode until emergency is cleared
  ********************************************/
 
-static void DoorControlTask(void)
+static void DoorControlTask(DoorControl_parameter * pvParameter)
 {
    
     DoorState curr_doorstate = closed;
@@ -72,7 +72,7 @@ static void DoorControlTask(void)
 
                     prev_doorstate = closed;
                 }
-                
+                 xSemaphoreGive(pvParameter.m_service_done, portMAX_DELAY);
                 break;
             case open:
                 setLED(1,0);
@@ -99,7 +99,8 @@ static void DoorControlTask(void)
                 prev_doorstate = open;
                 break;
             case opening:
-
+                xSemaphoreTake(pvParameter.m_service_done, portMAX_DELAY);
+                
                 for(i = 1; i <= 4; i++)
                 {
                     vTaskDelay(500/portTICK_PERIOD_MS);
@@ -125,6 +126,8 @@ static void DoorControlTask(void)
 
                 curr_doorstate = closed;
                 prev_doorstate = curr_doorstate;
+
+                
                 break;
 
             case emergency:
@@ -159,15 +162,16 @@ static void DoorControlTask(void)
  * will build a messege queue to communicate with
  *
  ********************************************/
-void InitDOORControl()
+void InitDOORControl(DoorControl_parameter * pvParameter)
 {
     
     char msg[25];
-    m_door_message_queue = xQueueCreate(20,sizeof(msg));
+    
+   m_door_message_queue = xQueueCreate(20,sizeof(msg));
      xTaskCreate(   DoorControlTask,
                     "DoorControlTask",
                     configMINIMAL_STACK_SIZE,
-                    NULL,
+                    (void*) &pvParameter,
                     1,
                     &DoorControlTaskID);
 }
