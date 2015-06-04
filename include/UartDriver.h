@@ -4,6 +4,9 @@
 #ifdef	__cplusplus
 extern "C" {
 #endif
+#include <CommonIncludes.h>
+
+
 
     void InitUartDriver();
     void UartMessageOut(char * str);

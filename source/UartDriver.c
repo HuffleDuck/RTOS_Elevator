@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <plib.h>
 
-#include <CommonIncludes.h>
 
 #include <UartDriver.h>
 
@@ -76,7 +75,7 @@ static void taskTxUART(void * pParam) {
 static void taskRxUART(void * pParam) {
     static char rxMessage[MAX_INPUT_QUEUE] = {0};
     static char retMsg[2] = {0};
-    uint8 data = 0;
+    uint8_t data = 0;
     char * strIter = rxMessage;
 
     while (1)

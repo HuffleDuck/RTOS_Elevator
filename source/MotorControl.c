@@ -148,12 +148,15 @@ static void Motor_Control_Task(void *pvParameters)
 	}
 }
 
-void InitMotorControl(void)
+void InitMotorControl(void *pvParameters)
 {
+    MotorControl_parameter *parameters_for_you;
+    parameters_for_you = (MotorControl_parameter *) pvParameters;
+
     xTaskCreate(   Motor_Control_Task,
                     "MotorControlTask",
                     configMINIMAL_STACK_SIZE,
-                    NULL,
+                    (void *) &parameters_for_you,
                     1,
                     &MotorControlTask);
 

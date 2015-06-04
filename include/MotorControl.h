@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-void InitMotorControl(void);
+void InitMotorControl(void *pvParameters);
 
 #ifdef	__cplusplus
 }
