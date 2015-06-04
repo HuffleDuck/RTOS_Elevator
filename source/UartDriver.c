@@ -21,7 +21,7 @@ static SemaphoreHandle_t uartRxMutex = 0;
 static SemaphoreHandle_t uartTxMutex = 0;
 
 #define MAX_INPUT_QUEUE     200
-#define MAX_OUTPUT_QUEUE    200
+#define MAX_OUTPUT_QUEUE    20
 
 /************************************************
  * UartISR: Unblocks tasks that manage the UART
@@ -60,7 +60,7 @@ static void taskTxUART(void * pParam) {
         isrOutString = buffer;
         if (xQueueReceive(uartTxQueue, &buffer, portMAX_DELAY))
         {
-            while (*isrOutString != 0)
+            while (*isrOutString != 0 && isrOutString < buffer + MAX_OUTPUT_QUEUE)
             {
                 UARTSendDataByte(UART2, *isrOutString++);
                 xSemaphoreTake(uartTxMutex, portMAX_DELAY);
@@ -75,7 +75,8 @@ static void taskTxUART(void * pParam) {
  ***********************************************/
 static void taskRxUART(void * pParam) {
     static char rxMessage[MAX_INPUT_QUEUE] = {0};
-	char data = 0;
+    static char retMsg[2] = {0};
+    uint8 data = 0;
     char * strIter = rxMessage;
 
     while (1)
@@ -95,6 +96,9 @@ static void taskRxUART(void * pParam) {
         }
         else if (strIter != rxMessage + MAX_INPUT_QUEUE)
             (*strIter++) = data;
+
+        *retMsg = data;
+        UartMessageOut(retMsg);
     }
 }
 
@@ -157,5 +161,21 @@ QueueHandle_t GetUartReceiveQueue()
  ***********************************************/
 void UartMessageOut(char * string)
 {
-    xQueueSendToBack(uartTxQueue, string, portMAX_DELAY);
+    char buffer[MAX_OUTPUT_QUEUE] = {0};
+
+    int length = strlen(string);
+    int numRuns = length / MAX_OUTPUT_QUEUE;
+    int rem = length % MAX_OUTPUT_QUEUE;
+    int i = 0;
+
+    for (; i < numRuns; i++)
+    {
+        strncpy(buffer, &string[i * MAX_OUTPUT_QUEUE], MAX_OUTPUT_QUEUE);
+        xQueueSendToBack(uartTxQueue, buffer, portMAX_DELAY);
+    }
+    if (rem > 0)
+    {
+        strcpy(buffer, &string[i * MAX_OUTPUT_QUEUE]);
+        xQueueSendToBack(uartTxQueue, buffer, portMAX_DELAY);
+    }
 }
