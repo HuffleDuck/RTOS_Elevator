@@ -8,6 +8,11 @@
 void ServiceQueueControlTask(void *param_struct);
 
 
+typedef struct task_parameter {
+    int m_pattern_num;                   /* The pattern to display */
+    portTickType m_xToggleRate;               /* The rate at which the LED should be toggle. */
+} pattern_task_parameter;
+
 
 
 typedef enum

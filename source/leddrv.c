@@ -1,8 +1,10 @@
 #include "leddrv.h"
+#include <stdint.h>
+#include <plib.h>
 
 uint8_t initializeLedDriver(void)
 {
-    uint8_t success = 1;
+    int success = 1;
 
 
     ODCACLR = 0xFF;
@@ -17,8 +19,8 @@ uint8_t initializeLedDriver(void)
 }
 uint8_t readLed(uint8_t ledNum)
 {
-    uint8_t success = 2;
-    uint8_t TEMPread = 0;
+    int success = 2;
+    int TEMPread = 0;
     if(ledNum == 1)
     {
         if(LATA & 0x01)
@@ -61,7 +63,7 @@ uint8_t readLed(uint8_t ledNum)
 // (LED to set, 1 == on)
 uint8_t setLED(uint8_t ledNum, uint8_t value)
 {
-    uint8_t success = 1;
+    int success = 1;
 
       if( ledNum == 1)
     {
@@ -168,7 +170,7 @@ uint8_t setLED(uint8_t ledNum, uint8_t value)
 //returns zero if successful
 uint8_t toggleLED(uint8_t ledNum)
 {
-    uint8_t success = 1;
+    int success = 1;
 
     if( ledNum == 1)
     {
