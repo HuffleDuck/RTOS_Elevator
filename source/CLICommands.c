@@ -1,5 +1,4 @@
 #include "CLICommands.h"
-#include "MyTasks.h"
 #include "UartDriver.h"
 
 const xCommandLineInput inputCommands[] = {
