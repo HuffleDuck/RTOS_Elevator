@@ -6,7 +6,7 @@
 // Comunication
 //////////////////////////////////////////////////////////////
 
-#define DISTNACE_FROM_GND_TO_P1 500
+#define DISTANCE_FROM_GND_TO_P1 500
 #define DISTANCE_FROM_P1_TO_P2 10
 #define DISTANCE_FROM_GND_TO_P2 510
 //////////////////////// All Common Structs and Enums/////////////////////////////
