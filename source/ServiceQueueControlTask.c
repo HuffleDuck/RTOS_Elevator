@@ -28,8 +28,8 @@ void ServiceQueueControlTask(void *param_struct)
                                      // Change this to an internal enum maybe.
 
   volatile int current_floor = 0;
-  int current_max_speed = 20;
-  int current_acel = 2;
+  float current_max_speed = 20;
+  float current_acel = 2;
 
     bool new_service = true;
 
@@ -212,6 +212,7 @@ void ServiceQueueControlTask(void *param_struct)
 
                              current_max_speed = current_working_req.m_data;
                              motor_message_to_send.state = 'S';
+                             motor_message_to_send.m_data = current_max_speed;
                              motor_message_to_send.m_time_to_spend_in_accel = current_max_speed;
                              motor_message_to_send.m_time_to_spend_in_cruise = 0;
                              motor_message_to_send.m_time_to_spend_in_decel = 0;
@@ -241,6 +242,7 @@ void ServiceQueueControlTask(void *param_struct)
                            new_service  = false;
                          current_acel = current_working_req.m_data;
                          motor_message_to_send.state = 'A';
+                         motor_message_to_send.m_data = current_acel;
                          motor_message_to_send.m_time_to_spend_in_accel = current_acel;
                          motor_message_to_send.m_time_to_spend_in_cruise = 0;
                          motor_message_to_send.m_time_to_spend_in_decel = 0;
@@ -297,12 +299,27 @@ void ServiceQueueControlTask(void *param_struct)
                         {
                            // So only remove this from the front of the queue
                             // when the motor signals that it is done.
+                           
+                             motor_message_to_send.m_data = DISTANCE_FROM_GND_TO_P2;
+                             motor_message_to_send.state = 'D'; // Update the floor position
+                             // motor_message_to_send.m_data holds the distance between floors.
+                             motor_message_to_send.m_start = false;
+                             //
+                             xQueueSendToBack(parameters_for_you->m_motor_message_queue,
+                                                    &motor_message_to_send,  0 );
+                            
                             xQueueReceive( service_queue_var,
                                                         &temp_req,
                                                         0); // throw temp_req away.
                             UartMessageOut(floor_p2_message);
                             current_floor = 2; // we are on the ground floor now.
-                            new_service = true;
+                            
+                           new_service = true;
+                           
+                           // Round the motors distance to the floor up.
+                          
+                           
+       
                         }
                         break;
 
@@ -334,6 +351,16 @@ void ServiceQueueControlTask(void *param_struct)
                         {
                            // So only remove this from the front of the queue
                             // when the motor signals that it is done.
+
+                             motor_message_to_send.m_data = DISTANCE_FROM_GND_TO_P1;
+                             motor_message_to_send.state = 'D'; // Update the floor position
+                             // motor_message_to_send.m_data holds the distance between floors.
+                             motor_message_to_send.m_start = false;
+                             //
+                             xQueueSendToBack(parameters_for_you->m_motor_message_queue,
+                                                    &motor_message_to_send,  0 );
+
+
                             xQueueReceive( service_queue_var,
                                                         &temp_req,
                                                         0); // throw temp_req away.
@@ -370,6 +397,19 @@ void ServiceQueueControlTask(void *param_struct)
                         {
                            // So only remove this from the front of the queue
                             // when the motor signals that it is done.
+
+
+
+                             motor_message_to_send.m_data = 0;
+                             motor_message_to_send.state = 'D'; // Update the floor position
+                             // motor_message_to_send.m_data holds the distance between floors.
+                             motor_message_to_send.m_start = false;
+                             //
+                             xQueueSendToBack(parameters_for_you->m_motor_message_queue,
+                                                    &motor_message_to_send,  0 );
+
+
+
                             xQueueReceive( service_queue_var,
                                                         &temp_req,
                                                         0); // throw temp_req away.
@@ -398,14 +438,15 @@ void ServiceQueueControlTask(void *param_struct)
 // times for the current_floor to requested_floor.
 // DOES NOT set the MotorMessage char[] message, emergancy, or start bool.
 ///////////////////////////////////////////////////////////////////
-MotorMessage CreateNewMotorMessage(int current_max_speed,
-                                            int current_acel,
+MotorMessage CreateNewMotorMessage(float current_max_speed,
+                                            float current_acel,
                                             int current_floor,
                                             int requested_floor)
 {
-    int distance_to_top_speed, acel_and_decel_distance, cruise_distance = 0;
-    int time_to_spend_in_acel, time_to_spend_in_cruise = 0;
-    int temp_for_testing = 0;
+    float distance_to_top_speed, acel_and_decel_distance, cruise_distance = 0;
+    float time_to_spend_in_acel, time_to_spend_in_cruise = 0;
+    float temp_for_testing = 0;
+    float tot_disatance;
     MotorMessage motor_message_to_return;
     bool up_true = false;
         distance_to_top_speed =  current_max_speed * current_max_speed / (2 * current_acel);
@@ -424,10 +465,12 @@ MotorMessage CreateNewMotorMessage(int current_max_speed,
                 {
 
                     cruise_distance = DISTANCE_FROM_GND_TO_P2 - acel_and_decel_distance;
+                     motor_message_to_return.m_data = DISTANCE_FROM_GND_TO_P2;
                 }
                 else
                 {
                     cruise_distance = DISTANCE_FROM_GND_TO_P1 - acel_and_decel_distance;
+                    motor_message_to_return.m_data = DISTANCE_FROM_GND_TO_P1;
                 }
 
                 up_true = true;
@@ -443,7 +486,7 @@ MotorMessage CreateNewMotorMessage(int current_max_speed,
                 { // Cruise distance will hold how much we are overshooting by
                     cruise_distance = (cruise_distance * -1)/2; // abs and /2
                     // take exactly that much off each acel time
-                    distance_to_top_speed - cruise_distance;
+                     distance_to_top_speed  = distance_to_top_speed - cruise_distance;
                    // time for more math.
                     // d = (1/2)at^2 // so t = sqrt([2*d]/a)
                     time_to_spend_in_acel = sqrt((2*distance_to_top_speed)/current_acel);
@@ -459,12 +502,13 @@ MotorMessage CreateNewMotorMessage(int current_max_speed,
                 if (requested_floor == 2)
                 {
                    up_true = true;
-                    cruise_distance = DISTANCE_FROM_P1_TO_P2 - acel_and_decel_distance;
+                   cruise_distance = DISTANCE_FROM_P1_TO_P2 - acel_and_decel_distance;
+                    motor_message_to_return.m_data = DISTANCE_FROM_P1_TO_P2;
                 }
                 else
                 {
                     up_true = false;
-
+                    motor_message_to_return.m_data = DISTANCE_FROM_GND_TO_P1;
                     cruise_distance = DISTANCE_FROM_GND_TO_P1 - acel_and_decel_distance;
                 }
 
@@ -477,7 +521,7 @@ MotorMessage CreateNewMotorMessage(int current_max_speed,
                 { // Cruise distance will hold how much we are overshooting by
                     cruise_distance = (cruise_distance * -1)/2; // abs and /2
                     // take exactly that much off each acel time
-                    distance_to_top_speed - cruise_distance;
+                    distance_to_top_speed  = distance_to_top_speed - cruise_distance;
                    // time for more math.
                     // d = (1/2)at^2 // so t = sqrt([2*d]/a)
                     time_to_spend_in_acel = sqrt((2*distance_to_top_speed)/current_acel);
@@ -489,10 +533,12 @@ MotorMessage CreateNewMotorMessage(int current_max_speed,
                 if (requested_floor == 1)
                 {
                     cruise_distance = DISTANCE_FROM_P1_TO_P2 - acel_and_decel_distance;
+                    motor_message_to_return.m_data = DISTANCE_FROM_P1_TO_P2;
                 }
                 else
                 {
-                    cruise_distance = DISTANCE_FROM_GND_TO_P1 - acel_and_decel_distance;
+                    motor_message_to_return.m_data = DISTANCE_FROM_GND_TO_P2;
+                    cruise_distance = DISTANCE_FROM_GND_TO_P2 - acel_and_decel_distance;
                 }
                 up_true = false;
 
@@ -504,15 +550,15 @@ MotorMessage CreateNewMotorMessage(int current_max_speed,
                 else // Cruise distance is negative, bad.
                 { // Cruise distance will hold how much we are overshooting by
                     cruise_distance = (cruise_distance * -1)/2; // abs and /2
-                    // take exactly that much off each acel time
-                    distance_to_top_speed - cruise_distance;
+                    // take exactly that much off each acel distance
+                    distance_to_top_speed  = distance_to_top_speed - cruise_distance;
                    // time for more math.
                     // d = (1/2)at^2 // so t = sqrt([2*d]/a)
                     time_to_spend_in_acel = sqrt((2*distance_to_top_speed)/current_acel);
                     time_to_spend_in_cruise = 0;
                 }
             }
-
+////////////////////// (-b - sqrt(b * b - 4 * a * c)) / (2 * a)
             // Now that we know the total cruise distance for this case,
 
         }

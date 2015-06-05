@@ -6,7 +6,9 @@ extern "C" {
 #endif
 
 void InitMotorControl(void *pvParameters);
-void PrintSpeedAndPosition(int cur_speed, int cur_distance);
+void PrintSpeedAndPosition(float cur_speed, float cur_distance);
+int myRound(float round_this);
+
 
 #ifdef	__cplusplus
 }

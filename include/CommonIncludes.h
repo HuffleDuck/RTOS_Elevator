@@ -10,7 +10,8 @@ extern "C" {
 #include "task.h"
 #include "queue.h"
 #include "semphr.h"
-    
+#include <math.h> ///// Uuuuhhggggggg
+
 #ifdef	__cplusplus
 }
 #endif
