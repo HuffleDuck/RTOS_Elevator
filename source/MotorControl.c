@@ -15,9 +15,9 @@
 
 
 static TaskHandle_t MotorControlTask;
-static const float RES_FREQ = 8;
-static const float RES_PERIOD = 0.125;
-static const int RES_DELAY = 150;
+static const float RES_FREQ = 16;
+static const float RES_PERIOD = 0.0625;
+static const int RES_DELAY = 75;
 
 /*enum STATES
 {
@@ -93,6 +93,8 @@ static void Motor_Control_Task(void *pvParameters)
                 else if (read_in.state == 'A') // if the state of the message is A
                 {                           // read in the new acel.
                     accel_t  = read_in.m_data;
+                    if (accel_t > MAX_SPEED)
+                        accel_t = MAX_SPEED;
                     xSemaphoreGive(parameters_for_you->m_service_done);
                 }
                 else if(read_in.state == 'D')
@@ -321,10 +323,10 @@ void InitMotorControl(void *pvParameters)
                     1,
                     NULL);
 
-//    xTaskCreate( Motor_LED_Toggle_Task,
-//                    "MotorLEDToggleTask",
-//                    configMINIMAL_STACK_SIZE,
-//                    (void *) parameters_for_you,
-//                    1,
-//                    NULL);
+    xTaskCreate( Motor_LED_Toggle_Task,
+                    "MotorLEDToggleTask",
+                    configMINIMAL_STACK_SIZE,
+                    (void *) parameters_for_you,
+                    1,
+                    NULL);
 }

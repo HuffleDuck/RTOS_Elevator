@@ -12,5 +12,10 @@ MotorMessage CreateNewMotorMessage(float current_max_speed,
                                             float current_acel,
                                             int current_floor,
                                             int requested_floor);
+
+/////Place Data into the SericeQueue here////////////////
+bool QueueServiceRequest( service_req request_for_service,
+                            float data_to_go_with_request);
+
 #endif	/* SERVICEQUEUECONTROLTASK_H */
 

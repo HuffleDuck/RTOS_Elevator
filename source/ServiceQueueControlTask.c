@@ -1,7 +1,7 @@
 #include "ServiceQueueControlTask.h"
 
 
-
+ QueueHandle_t * service_request_message_queue;
 ///////////////////////////////////////
 // Author: Gabriel McDermott
 // Purpose: Takes in requests for elevator service over a message queue.
@@ -22,8 +22,7 @@ void ServiceQueueControlTask(void *param_struct)
 
 
   int emergancy_state_var = 0;
-
-
+  service_request_message_queue = parameters_for_you->m_service_request_message_queue;
   QueueHandle_t service_queue_var = xQueueCreate( 50, sizeof(ServiceQueueMessage));
                                      // Change this to an internal enum maybe.
 
@@ -572,3 +571,11 @@ MotorMessage CreateNewMotorMessage(float current_max_speed,
         return motor_message_to_return;
 }
 
+bool QueueServiceRequest( service_req request_for_service,
+                            float data_to_go_with_request)
+{
+    ServiceQueueMessage send_this = { request_for_service, data_to_go_with_request};
+    xQueueSendToBack (*service_request_message_queue,
+                            &send_this,  0 );
+
+}
