@@ -24,10 +24,8 @@ typedef enum
 	CallToGNDOutsideCar, //    treat both UART_TX requests for a floor outside a car and CLI
 	CallToP1fromOutsideCar, //  requests for floor N as requests outside the car.
 	CallToP2fromOutsideCar,
-	ChangeMaxSpeedToN, // Before sending this message, update a global var  ChangeMaxAccelToN,
-	ChangeMaxAccelToN,// "NEW_VEL_VALUE" with the new speed/acel. CLI will be the only
-	// task to write to this space. The Service_queue_controller_task will be the only task to
-	// read this var.
+	ChangeMaxSpeedToN, //N will be an int packaged up with this bad boy
+	ChangeMaxAccelToN,
 } service_req;
 //
 //char [][] SERVICE_REQ
@@ -50,7 +48,7 @@ typedef enum
 
 typedef struct _MotorMessage
 {
-	char state[15];
+	char state;
 	int m_time_to_spend_in_accel;
 	int m_time_to_spend_in_cruise;
 	int m_time_to_spend_in_decel;
@@ -58,6 +56,12 @@ typedef struct _MotorMessage
         bool m_start;
         bool m_up_true;
 }MotorMessage;
+
+typedef struct ServiceQueueMessage
+{
+        service_req m_please_do_this;
+        int m_data;
+}ServiceQueueMessage;
 
 ///////////////////////////All Task Parameter Types////////////////////////
 ////////////////////For giving to Tasks///////////////////////////////////
@@ -76,6 +80,8 @@ typedef struct DummyListenerTask_parameter {
 typedef struct MotorControl_parameter  {
     QueueHandle_t m_motor_message_queue; // in from service queue
     SemaphoreHandle_t m_service_done; // Out to service queue
+    int m_current_speed;
+    int m_current_distance;
 } MotorControl_parameter;
 
 typedef struct DoorControl_parameter  {
@@ -83,10 +89,6 @@ typedef struct DoorControl_parameter  {
     SemaphoreHandle_t m_service_done;  // out to service queue
 } DoorControl_parameter;
 
-
-//////// Global Vars Here/////////////////////////////////////////////////////
-// Cli dumps data here, serviceQueueControlTaskReads it.
-static int NEW_VEL_VALUE;
 
 //Current Emergancy State, ServiceQueueControlTask writes here, and MotorControl reads it.
 static bool EMER_FLAG;

@@ -14,9 +14,9 @@ void ServiceQueueControlTask(void *param_struct)
 {
   ServiceQueueControl_parameter *parameters_for_you;
   parameters_for_you = (ServiceQueueControl_parameter *) param_struct;
-  service_req req_in;
-  service_req temp_req;
-  service_req current_working_req;
+  ServiceQueueMessage req_in;
+  ServiceQueueMessage temp_req;
+  ServiceQueueMessage current_working_req;
   MotorMessage motor_message_to_send;
 
 
@@ -24,10 +24,10 @@ void ServiceQueueControlTask(void *param_struct)
   int emergancy_state_var = 0;
 
 
-  QueueHandle_t service_queue_var = xQueueCreate( 50, sizeof(service_req));
+  QueueHandle_t service_queue_var = xQueueCreate( 50, sizeof(ServiceQueueMessage));
                                      // Change this to an internal enum maybe.
 
-  int current_floor = 0;
+  volatile int current_floor = 0;
   int current_max_speed = 20;
   int current_acel = 2;
 
@@ -36,9 +36,15 @@ void ServiceQueueControlTask(void *param_struct)
     char service_queue_boot_message[35] = "//////Elevator booting//////////\r\n";
     service_queue_boot_message[35] = 0x00; // Null terminate
     UartMessageOut(service_queue_boot_message);
-  //////////////// all possible motor messages strings //////////////////////////
-  char motor_msg_default[15] = "Yoooo...";
-  motor_msg_default[15] = 0x00;
+
+  //////////////////internal into updated strings////////////////////////////////
+  char max_speed_update_msg[25] = "Maximum speed updated.\r\n";
+  char accel_update_msg[23] = "Accleration updated.\r\n";
+  char invalid_update_msg[31] = "Invalid speed/acel specefied\r\n";
+  max_speed_update_msg[25] = 0x00;
+  accel_update_msg[23] = 0x00;
+  invalid_update_msg[31] = 0x00;
+
  /////////////////All Floor Service strings//////////////
   char floor_gnd_message[23] = "Ground Floor Reached.\r\n";
   char floor_p1_message[27] = "First Penthouse Reached.\r\n";
@@ -80,13 +86,13 @@ void ServiceQueueControlTask(void *param_struct)
           // processes the mail.///////
 
           // if mail is that there is an emergancy or emergancy clear.
-          if (req_in == EmergStop)
+          if (req_in.m_please_do_this == EmergStop)
           {
                 vQueueDelete( service_queue_var);
                 emergancy_state_var = 1;
                  UartMessageOut(emergancy_set_message);
           }
-          else if ( req_in == EmergClear)
+          else if ( req_in.m_please_do_this == EmergClear)
           {
               emergancy_state_var = 0;
               UartMessageOut(emergancy_clear_message);
@@ -95,31 +101,31 @@ void ServiceQueueControlTask(void *param_struct)
 
               if (emergancy_state_var == 0)
               {  // Only queue mail if we are not in an emergancy.
-                  switch(req_in)
+                  switch(req_in.m_please_do_this)
                   {
                      case DoorInterference:
                           // if we just got mail that there is door interferance
                           xQueuePeek(service_queue_var, (void*) &temp_req, 0);
                           UartMessageOut(door_interferance_message);
-                          if (temp_req == CloseDoor) // and we are trying to close the door.
+                          if (temp_req.m_please_do_this == CloseDoor) // and we are trying to close the door.
                           {
                               // Stop trying to open it.
                             xQueueReceive( service_queue_var,
                                                     &temp_req,
                                                     0); // throw temp_req away.
-                              current_working_req = OpenDoor; // open it instead.
+                              current_working_req.m_please_do_this = OpenDoor; // open it instead.
 
                               xQueueSendToFront(service_queue_var,  // like, now.
                                                (void *) &current_working_req, 0);
                           }
-                          else if (temp_req == OpenDoor) // or if we are trying to open the door.
+                          else if (temp_req.m_please_do_this == OpenDoor) // or if we are trying to open the door.
                           {
                                                         // Stop trying to open it.
                             xQueueReceive( service_queue_var,
                                                         &temp_req,
                                                         0); // throw temp_req away.
 
-                              current_working_req = CloseDoor; // close it instead.
+                              current_working_req.m_please_do_this = CloseDoor; // close it instead.
                               xQueueSendToFront(service_queue_var,
                                                 (void *) &current_working_req, 0);
                           }
@@ -162,8 +168,10 @@ void ServiceQueueControlTask(void *param_struct)
                                             // are done with the services already queued.
                           // No need to change this while the car is in motion.
                           xQueueSendToBack(service_queue_var, (void*) &req_in, 0 );
+                          break;
                        case ChangeMaxAccelToN:
                           xQueueSendToBack(service_queue_var, (void*) &req_in, 0 );
+                          break;
                       default: // The message you just sent me does not make sense.
                           // Send a message to UART_TX here informing the user that
                           // ServiceQueueControl got a garbage message.
@@ -193,8 +201,74 @@ void ServiceQueueControlTask(void *param_struct)
           {
                 xQueuePeek(service_queue_var, (void*) &current_working_req, 0);
 
-                switch(current_working_req)
+                switch(current_working_req.m_please_do_this )
                 {
+                    case ChangeMaxSpeedToN:
+
+                        if (new_service == true)
+                        {
+                            new_service = false;
+
+
+                             current_max_speed = current_working_req.m_data;
+                             motor_message_to_send.state = 'S';
+                             motor_message_to_send.m_time_to_spend_in_accel = current_max_speed;
+                             motor_message_to_send.m_time_to_spend_in_cruise = 0;
+                             motor_message_to_send.m_time_to_spend_in_decel = 0;
+                             motor_message_to_send.m_emer_flag = false;
+                             motor_message_to_send.m_start = false;
+                             motor_message_to_send.m_up_true = false;
+                             xQueueSendToBack(parameters_for_you->m_motor_message_queue,
+                                                    &motor_message_to_send,  0 );
+                        }
+                         if (xSemaphoreTake(parameters_for_you->m_service_done, 0))
+                        {
+
+                             xQueueReceive( service_queue_var,
+                                                        &temp_req,
+                                                        0); // throw temp_req away.
+
+                            UartMessageOut(max_speed_update_msg);
+
+                            new_service = true;
+                        }
+                        break;
+
+                   case ChangeMaxAccelToN:
+
+                       if ( new_service == true)
+                       {
+                           new_service  = false;
+                         current_acel = current_working_req.m_data;
+                         motor_message_to_send.state = 'A';
+                         motor_message_to_send.m_time_to_spend_in_accel = current_acel;
+                         motor_message_to_send.m_time_to_spend_in_cruise = 0;
+                         motor_message_to_send.m_time_to_spend_in_decel = 0;
+                         motor_message_to_send.m_emer_flag = false;
+                         motor_message_to_send.m_start = false;
+                         motor_message_to_send.m_up_true = false;
+                         xQueueSendToBack(parameters_for_you->m_motor_message_queue,
+                                                &motor_message_to_send,  0 );
+
+                       }
+                       // Do not advance until the motor awknogledges the update.
+                        xQueueReceive( service_queue_var,
+                                                        &temp_req,
+                                                        0); // throw temp_req away.
+
+                        if (xSemaphoreTake(parameters_for_you->m_service_done, 0))
+                        {
+                           // So only remove this from the front of the queue
+                            // when the motor signals that it is done.
+                            xQueueReceive( service_queue_var,
+                                                        &temp_req,
+                                                        0); // throw temp_req away.
+                            UartMessageOut(accel_update_msg);
+
+                            new_service = true;
+                        }
+                        break;
+
                     case CallToP2InsideCar:
                         if (new_service == true)
                         {
@@ -205,14 +279,14 @@ void ServiceQueueControlTask(void *param_struct)
                             motor_message_to_send = CreateNewMotorMessage(current_max_speed,
                                                                             current_acel,
                                                                             current_floor,
-                                                                                        2);
-                            strcpy(motor_message_to_send.state, motor_msg_default);
+                                                                                      2);
+
                             motor_message_to_send.m_emer_flag = false;
                             motor_message_to_send.m_start = true;
 
 
-                             setLED(1, motor_message_to_send.m_up_true);
-                            setLED(2, !motor_message_to_send.m_up_true);
+                            setLED(8, motor_message_to_send.m_up_true);
+                            setLED(7, !motor_message_to_send.m_up_true);
 
                             xQueueSendToBack(parameters_for_you->m_motor_message_queue,
                                                 &motor_message_to_send,  0 );
@@ -243,13 +317,12 @@ void ServiceQueueControlTask(void *param_struct)
                                                                             current_floor,
                                                                                         0);
 
-                            strcpy(motor_message_to_send.state, motor_msg_default);
                             motor_message_to_send.m_emer_flag = false;
                             motor_message_to_send.m_start = true;
 
                             
-                            setLED(1, motor_message_to_send.m_up_true);
-                            setLED(2, !motor_message_to_send.m_up_true);
+                            setLED(8, motor_message_to_send.m_up_true);
+                            setLED(7, !motor_message_to_send.m_up_true);
 
                             xQueueSendToBack(parameters_for_you->m_motor_message_queue,
                                                 &motor_message_to_send,  0 );
@@ -367,7 +440,7 @@ MotorMessage CreateNewMotorMessage(int current_max_speed,
             time_to_spend_in_acel = current_max_speed/current_acel;
             time_to_spend_in_cruise = cruise_distance/current_max_speed;
         }
-       
+        motor_message_to_return.state = 0x00;
         motor_message_to_return.m_time_to_spend_in_accel = time_to_spend_in_acel;
         motor_message_to_return.m_time_to_spend_in_cruise = time_to_spend_in_cruise;
         motor_message_to_return.m_time_to_spend_in_decel = time_to_spend_in_acel;
@@ -376,122 +449,4 @@ MotorMessage CreateNewMotorMessage(int current_max_speed,
         motor_message_to_return.m_up_true = up_true;
         return motor_message_to_return;
 }
-
-
-//////
-//void HandleMail(void *param_struct)
-//{
-//    ServiceQueueControl_parameter *parameters_for_you;
-//    parameters_for_you = (ServiceQueueControl_parameter *) param_struct;
-//
-//    if (uxQueueMessagesWaiting(
-//              parameters_for_you->m_service_request_message_queue))
-//      {
-//         // read the mail.
-//          xQueueReceive( parameters_for_you->m_service_request_message_queue,
-//                        &req_in,
-//                        0);
-//          // processes the mail.///////
-//
-//          // if mail is that there is an emergancy or emergancy clear.
-//          if (req_in == EmergStop)
-//          {
-//                vQueueDelete( service_queue_var);
-//                emergancy_state_var = 1;
-//                 UartMessageOut(&emergancy_set_message);
-//          }
-//          else if ( req_in == EmergClear)
-//          {
-//              emergancy_state_var = 0;
-//              UartMessageOut(&emergancy_clear_message);
-//          } else
-//          {
-//
-//              if (emergancy_state_var == 0)
-//              {  // Only queue mail if we are not in an emergancy.
-//                  switch(req_in)
-//                  {
-//                     case DoorInterference:
-//                          // if we just got mail that there is door interferance
-//                          xQueuePeek(service_queue_var, (void*) &temp_req, 0);
-//                          UartMessageOut(& door_interferance_message);
-//                          if (temp_req == CloseDoor) // and we are trying to close the door.
-//                          {
-//                              // Stop trying to open it.
-//                            xQueueReceive( service_queue_var,
-//                                                    &temp_req,
-//                                                    0); // throw temp_req away.
-//                              current_working_req = OpenDoor; // open it instead.
-//
-//                              xQueueSendToFront(service_queue_var,  // like, now.
-//                                               (void *) &current_working_req, 0);
-//                          }
-//                          else if (temp_req == OpenDoor) // or if we are trying to open the door.
-//                          {
-//                                                        // Stop trying to open it.
-//                            xQueueReceive( service_queue_var,
-//                                                        &temp_req,
-//                                                        0); // throw temp_req away.
-//
-//                              current_working_req = CloseDoor; // close it instead.
-//                              xQueueSendToFront(service_queue_var,
-//                                                (void *) &current_working_req, 0);
-//                          }
-//                          else
-//                          { // If the thing we are doing right now is something
-//                              // other than opening or closing the door, and we
-//                              // are getting a door interferance signal, trigger
-//                              // an emergancy state.
-//                              UartMessageOut(&emergancy_set_message);
-//                              vQueueDelete( service_queue_var);
-//                              emergancy_state_var = 1;
-//                          }
-//                          break;
-//                       // Essentially all defaults. Queue without further modification.
-//                      case CallToGNDInsideCar:
-//                          xQueueSendToBack(service_queue_var, (void*) &req_in, 0 );
-//                         break;
-//                      case CallToP1InsideCar:
-//                          xQueueSendToBack(service_queue_var, (void*) &req_in, 0 );
-//                          break;
-//                      case CallToP2InsideCar:
-//                          xQueueSendToBack(service_queue_var, (void*) &req_in, 0 );
-//                          break;
-//                      case CallToGNDOutsideCar:
-//                          xQueueSendToBack(service_queue_var, (void*) &req_in, 0 );
-//                          break;
-//                      case CallToP1fromOutsideCar:
-//                          xQueueSendToBack(service_queue_var, (void*) &req_in, 0 );
-//                          break;
-//                      case CallToP2fromOutsideCar:
-//                          xQueueSendToBack(service_queue_var, (void*) &req_in, 0 );
-//                          break;
-//                      case OpenDoor:
-//                          xQueueSendToBack(service_queue_var, (void*) &req_in, 0 );
-//                          break;
-//                      case CloseDoor:
-//                          xQueueSendToBack(service_queue_var, (void*) &req_in, 0 );
-//                          break;
-//                      case ChangeMaxSpeedToN: // We will actually update this after we
-//                                            // are done with the services already queued.
-//                          // No need to change this while the car is in motion.
-//                          xQueueSendToBack(service_queue_var, (void*) &req_in, 0 );
-//                       case ChangeMaxAccelToN:
-//                          xQueueSendToBack(service_queue_var, (void*) &req_in, 0 );
-//                      default: // The message you just sent me does not make sense.
-//                          // Send a message to UART_TX here informing the user that
-//                          // ServiceQueueControl got a garbage message.
-//
-//                          UartMessageOut(&garbage_mail_message);
-//                          break;
-//                  }
-//              }
-//              else
-//              {
-//                  UartMessageOut(&emergancy_lockout_message);
-//              }
-//
-//          }
-//      }
-//}
 
