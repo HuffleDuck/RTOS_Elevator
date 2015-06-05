@@ -44,14 +44,20 @@ typedef enum _MOTOR_STATES
  *************************************************/
 static void Motor_Control_Task(void *pvParameters)
 {
-	MOTOR_STATES STATE = idle;
+	MotorControl_parameter *parameters_for_you;
+        parameters_for_you = (MotorControl_parameter *) pvParameters;
+
+
+        MOTOR_STATES STATE = idle;
         MotorMessage temp;
         char char_curr_speed[50];
         char char_curr_distfrom_grnd[50];
-        bool start = true;
+        bool start = false;
 	int i = 0; // count for seconds spend
 	int speed = 0; // speed of the car
         int accel_t = 2;
+
+
 
         temp.m_time_to_spend_in_accel = 5;
         temp.m_time_to_spend_in_cruise = 3;
@@ -59,6 +65,14 @@ static void Motor_Control_Task(void *pvParameters)
 
 	while(1)
 	{
+            if (uxQueueMessagesWaiting(parameters_for_you->m_motor_message_queue) > 0)
+            {
+                xQueueReceive( parameters_for_you->m_motor_message_queue,
+                            &temp,
+                            0);
+                start = temp.m_start;
+
+            }
 
             switch(STATE)
             {
@@ -82,8 +96,10 @@ static void Motor_Control_Task(void *pvParameters)
                 for(i = 0; i < (temp.m_time_to_spend_in_accel); i++)
                 {
                     if (temp.m_emer_flag)
+                    {
+                        xSemaphoreGive(parameters_for_you->m_service_done);
                         STATE = idle;
-
+                    }
                     if(speed  < MAX_SPEED)
                         speed = speed + accel_t;
                     itoa(char_curr_speed,speed,10);
@@ -106,7 +122,10 @@ static void Motor_Control_Task(void *pvParameters)
                 {
                     //while m_time_to_spend
                     if (temp.m_emer_flag)
+                    {
+                           xSemaphoreGive(parameters_for_you->m_service_done);
                            STATE = idle;
+                    }
                     vTaskDelay( 1000/portTICK_PERIOD_MS  );
                     itoa(char_curr_speed,speed,10);
                     strcat(char_curr_speed," ft/s \n\r");
@@ -125,8 +144,10 @@ static void Motor_Control_Task(void *pvParameters)
                 {
                     toggleLED(5);
                     if (temp.m_emer_flag)
+                    {
+                          xSemaphoreGive(parameters_for_you->m_service_done);
                            STATE = idle;
-
+                    }
                     vTaskDelay(1000/portTICK_PERIOD_MS);
                     if(speed > accel_t && speed > 1)
                     {
@@ -137,10 +158,12 @@ static void Motor_Control_Task(void *pvParameters)
                     }
                      toggleLED(5);
                 }
+                xSemaphoreGive(parameters_for_you->m_service_done);
                 STATE = idle;
                 break;
 
                 default:
+                 xSemaphoreGive(parameters_for_you->m_service_done);
                 STATE = idle;
                 start = false;
                 break;
@@ -156,7 +179,7 @@ void InitMotorControl(void *pvParameters)
     xTaskCreate(   Motor_Control_Task,
                     "MotorControlTask",
                     configMINIMAL_STACK_SIZE,
-                    (void *) &parameters_for_you,
+                    (void *) parameters_for_you,
                     1,
                     &MotorControlTask);
 
