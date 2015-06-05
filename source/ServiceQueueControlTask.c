@@ -48,11 +48,11 @@ void ServiceQueueControlTask(void *param_struct)
  /////////////////All Floor Service strings//////////////
   char floor_gnd_message[23] = "Ground Floor Reached.\r\n";
   char floor_p1_message[27] = "First Penthouse Reached.\r\n";
-  char floor_p2_message[24] = "Second Floor Reached.\r\n";
+  char floor_p2_message[28] = "Second Penthouse Reached.\r\n";
 
   floor_gnd_message[23] = 0x00;
   floor_p1_message[27] = 0x00;
-  floor_p2_message[24] = 0x00;
+  floor_p2_message[28] = 0x00;
 /////////////////All Mail Handling Strings///////////////////////////////////////////
     char emergancy_lockout_message[81] = "Emergency Lockdown in Progress.\r\n"
                                     "Clear Emergancy Lockdown to Resume Operation.\r\n";
@@ -305,6 +305,43 @@ void ServiceQueueControlTask(void *param_struct)
                             new_service = true;
                         }
                         break;
+
+                    case CallToP1InsideCar:
+                        if (new_service == true)
+                        {
+
+                            new_service = false; // only send the message once.
+                                            // we will then wait and check mail
+                                           // until the door signals its done.
+                            motor_message_to_send = CreateNewMotorMessage(current_max_speed,
+                                                                            current_acel,
+                                                                            current_floor,
+                                                                                      1);
+
+                            motor_message_to_send.m_emer_flag = false;
+                            motor_message_to_send.m_start = true;
+
+
+                            setLED(8, motor_message_to_send.m_up_true);
+                            setLED(7, !motor_message_to_send.m_up_true);
+
+                            xQueueSendToBack(parameters_for_you->m_motor_message_queue,
+                                                &motor_message_to_send,  0 );
+                        }
+
+                        // Check to see if the door is done with the thing we just asked.
+                        if (xSemaphoreTake(parameters_for_you->m_service_done, 0))
+                        {
+                           // So only remove this from the front of the queue
+                            // when the motor signals that it is done.
+                            xQueueReceive( service_queue_var,
+                                                        &temp_req,
+                                                        0); // throw temp_req away.
+                            UartMessageOut(floor_p1_message);
+                            current_floor = 1; // we are on the ground floor now.
+                            new_service = true;
+                        }
+                        break;
                     case CallToGNDInsideCar:
                         if (new_service == true)
                         {
@@ -368,6 +405,7 @@ MotorMessage CreateNewMotorMessage(int current_max_speed,
 {
     int distance_to_top_speed, acel_and_decel_distance, cruise_distance = 0;
     int time_to_spend_in_acel, time_to_spend_in_cruise = 0;
+    int temp_for_testing = 0;
     MotorMessage motor_message_to_return;
     bool up_true = false;
         distance_to_top_speed =  current_max_speed * current_max_speed / (2 * current_acel);
@@ -395,8 +433,22 @@ MotorMessage CreateNewMotorMessage(int current_max_speed,
                 up_true = true;
 
 
-                time_to_spend_in_acel = current_max_speed/current_acel;
-                time_to_spend_in_cruise = cruise_distance/current_max_speed;
+                if (cruise_distance > 0)
+                {
+                    time_to_spend_in_acel = current_max_speed/current_acel;
+                    temp_for_testing = sqrt((2*distance_to_top_speed)/current_acel);
+                    time_to_spend_in_cruise = cruise_distance/current_max_speed;
+                }
+                else // Cruise distance is negative, bad.
+                { // Cruise distance will hold how much we are overshooting by
+                    cruise_distance = (cruise_distance * -1)/2; // abs and /2
+                    // take exactly that much off each acel time
+                    distance_to_top_speed - cruise_distance;
+                   // time for more math.
+                    // d = (1/2)at^2 // so t = sqrt([2*d]/a)
+                    time_to_spend_in_acel = sqrt((2*distance_to_top_speed)/current_acel);
+                    time_to_spend_in_cruise = 0;
+                }
             }
             else if (current_floor == 1)
             {     ////////////////////In Penthouse to Penthouse Cases, Will we have
@@ -415,8 +467,22 @@ MotorMessage CreateNewMotorMessage(int current_max_speed,
 
                     cruise_distance = DISTANCE_FROM_GND_TO_P1 - acel_and_decel_distance;
                 }
-                time_to_spend_in_acel = current_max_speed/current_acel;
-                time_to_spend_in_cruise = cruise_distance/current_max_speed;
+
+                if (cruise_distance > 0)
+                {
+                    time_to_spend_in_acel = current_max_speed/current_acel;
+                    time_to_spend_in_cruise = cruise_distance/current_max_speed;
+                }
+                else // Cruise distance is negative, bad.
+                { // Cruise distance will hold how much we are overshooting by
+                    cruise_distance = (cruise_distance * -1)/2; // abs and /2
+                    // take exactly that much off each acel time
+                    distance_to_top_speed - cruise_distance;
+                   // time for more math.
+                    // d = (1/2)at^2 // so t = sqrt([2*d]/a)
+                    time_to_spend_in_acel = sqrt((2*distance_to_top_speed)/current_acel);
+                    time_to_spend_in_cruise = 0;
+                }
             }
             else if (current_floor == 2)
             {
@@ -430,15 +496,25 @@ MotorMessage CreateNewMotorMessage(int current_max_speed,
                 }
                 up_true = false;
 
-
-                time_to_spend_in_acel = current_max_speed/current_acel;
-                time_to_spend_in_cruise = cruise_distance/current_max_speed;
-                 
+                if (cruise_distance > 0)
+                {
+                    time_to_spend_in_acel = current_max_speed/current_acel;
+                    time_to_spend_in_cruise = cruise_distance/current_max_speed;
+                }
+                else // Cruise distance is negative, bad.
+                { // Cruise distance will hold how much we are overshooting by
+                    cruise_distance = (cruise_distance * -1)/2; // abs and /2
+                    // take exactly that much off each acel time
+                    distance_to_top_speed - cruise_distance;
+                   // time for more math.
+                    // d = (1/2)at^2 // so t = sqrt([2*d]/a)
+                    time_to_spend_in_acel = sqrt((2*distance_to_top_speed)/current_acel);
+                    time_to_spend_in_cruise = 0;
+                }
             }
 
             // Now that we know the total cruise distance for this case,
-            time_to_spend_in_acel = current_max_speed/current_acel;
-            time_to_spend_in_cruise = cruise_distance/current_max_speed;
+
         }
         motor_message_to_return.state = 0x00;
         motor_message_to_return.m_time_to_spend_in_accel = time_to_spend_in_acel;
