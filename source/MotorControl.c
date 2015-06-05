@@ -52,17 +52,18 @@ static void Motor_Control_Task(void *pvParameters)
         MotorMessage temp;
         char char_curr_speed[50];
         char char_curr_distfrom_grnd[50];
+
         bool start = false;
 	int i = 0; // count for seconds spend
 	int speed = 0; // speed of the car
         int accel_t = 2;
-
-
+        int distance_from_ground = 0;
+        bool up_true;
 
         temp.m_time_to_spend_in_accel = 5;
         temp.m_time_to_spend_in_cruise = 3;
         temp.m_time_to_spend_in_decel = 5;
-
+        temp.m_up_true = false;
 	while(1)
 	{
             if (uxQueueMessagesWaiting(parameters_for_you->m_motor_message_queue) > 0)
@@ -71,6 +72,7 @@ static void Motor_Control_Task(void *pvParameters)
                             &temp,
                             0);
                 start = temp.m_start;
+                up_true = temp.m_up_true;
 
             }
 
@@ -78,9 +80,9 @@ static void Motor_Control_Task(void *pvParameters)
             {
                 case idle: //motor not moving
                 speed = 0;
-                itoa(char_curr_speed,speed,10);
-                strcat(char_curr_speed," ft/s \n\r");
-                UartMessageOut(char_curr_speed);
+                PrintSpeedAndPosition(speed, distance_from_ground);
+
+
                     
                 if (temp.m_emer_flag)
                     STATE  = STATE;
@@ -102,9 +104,13 @@ static void Motor_Control_Task(void *pvParameters)
                     }
                     if(speed  < MAX_SPEED)
                         speed = speed + accel_t;
-                    itoa(char_curr_speed,speed,10);
-                    strcat(char_curr_speed," ft/s \n\r");
-                    UartMessageOut(char_curr_speed);
+
+                    if ( up_true)
+                        distance_from_ground = distance_from_ground + speed;
+                    else
+                        distance_from_ground = distance_from_ground - speed;
+
+                    PrintSpeedAndPosition(speed, distance_from_ground);
 
                     vTaskDelay(1000/portTICK_PERIOD_MS);
                     toggleLED(5);
@@ -121,15 +127,19 @@ static void Motor_Control_Task(void *pvParameters)
                 for(i = 0; i < (temp.m_time_to_spend_in_cruise); i++)
                 {
                     //while m_time_to_spend
-                    if (temp.m_emer_flag)
+                    if ( temp.m_emer_flag)
                     {
                            xSemaphoreGive(parameters_for_you->m_service_done);
                            STATE = idle;
                     }
+                    
+                    if (up_true)
+                        distance_from_ground = distance_from_ground + speed;
+                    else
+                        distance_from_ground = distance_from_ground - speed;
+
                     vTaskDelay( 1000/portTICK_PERIOD_MS  );
-                    itoa(char_curr_speed,speed,10);
-                    strcat(char_curr_speed," ft/s \n\r");
-                    UartMessageOut(char_curr_speed);
+                    PrintSpeedAndPosition(speed, distance_from_ground);
                 }
 
 
@@ -148,13 +158,19 @@ static void Motor_Control_Task(void *pvParameters)
                           xSemaphoreGive(parameters_for_you->m_service_done);
                            STATE = idle;
                     }
+
+
+
+                    if (up_true)
+                        distance_from_ground = distance_from_ground + speed;
+                    else
+                        distance_from_ground = distance_from_ground - speed;
+
                     vTaskDelay(1000/portTICK_PERIOD_MS);
                     if(speed > accel_t && speed > 1)
                     {
                         speed = speed - accel_t;
-                        itoa(char_curr_speed,speed,10);
-                        strcat(char_curr_speed," ft/s \n\r");
-                        UartMessageOut(char_curr_speed);
+                        PrintSpeedAndPosition(speed, distance_from_ground);
                     }
                      toggleLED(5);
                 }
@@ -170,6 +186,18 @@ static void Motor_Control_Task(void *pvParameters)
             }
 	}
 }
+
+
+void PrintSpeedAndPosition(int cur_speed, int cur_distance)
+{
+    char print_cur_speed[15], print_cur_dist[15];
+    itoa(print_cur_speed,cur_speed,10);
+    itoa(print_cur_dist, cur_distance,10);
+    strcat(print_cur_speed," ft/s   ");
+    strcat(print_cur_dist," ft \n\r");
+    UartMessageOut(print_cur_speed);
+    UartMessageOut(print_cur_dist);
+};
 
 void InitMotorControl(void *pvParameters)
 {

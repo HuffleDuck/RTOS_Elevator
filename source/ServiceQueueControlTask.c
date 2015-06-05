@@ -33,8 +33,8 @@ void ServiceQueueControlTask(void *param_struct)
 
     bool new_service = true;
 
-    char service_queue_boot_message[34] = "//////Elevator booting//////////\r\n";
-    service_queue_boot_message[34] = 0x00; // Null terminate
+    char service_queue_boot_message[35] = "//////Elevator booting//////////\r\n";
+    service_queue_boot_message[35] = 0x00; // Null terminate
     UartMessageOut(service_queue_boot_message);
   //////////////// all possible motor messages strings //////////////////////////
   char motor_msg_default[15] = "Yoooo...";
@@ -62,7 +62,7 @@ void ServiceQueueControlTask(void *param_struct)
       emergancy_set_message[21] = 0x00;
       emergancy_clear_message[23] = 0x00;
       ////////////////////////////////////////////////////////////////////////
-
+    while (xSemaphoreTake(parameters_for_you->m_service_done, 0)) // Clear out the semaphore
 
   while (1)
   {
@@ -210,6 +210,10 @@ void ServiceQueueControlTask(void *param_struct)
                             motor_message_to_send.m_emer_flag = false;
                             motor_message_to_send.m_start = true;
 
+
+                             setLED(1, motor_message_to_send.m_up_true);
+                            setLED(2, !motor_message_to_send.m_up_true);
+
                             xQueueSendToBack(parameters_for_you->m_motor_message_queue,
                                                 &motor_message_to_send,  0 );
                         }
@@ -244,7 +248,8 @@ void ServiceQueueControlTask(void *param_struct)
                             motor_message_to_send.m_start = true;
 
                             
-
+                            setLED(1, motor_message_to_send.m_up_true);
+                            setLED(2, !motor_message_to_send.m_up_true);
 
                             xQueueSendToBack(parameters_for_you->m_motor_message_queue,
                                                 &motor_message_to_send,  0 );
@@ -291,6 +296,7 @@ MotorMessage CreateNewMotorMessage(int current_max_speed,
     int distance_to_top_speed, acel_and_decel_distance, cruise_distance = 0;
     int time_to_spend_in_acel, time_to_spend_in_cruise = 0;
     MotorMessage motor_message_to_return;
+    bool up_true = false;
         distance_to_top_speed =  current_max_speed * current_max_speed / (2 * current_acel);
         acel_and_decel_distance = distance_to_top_speed * 2;
         // Get the cruise distance for our current path.
@@ -304,9 +310,17 @@ MotorMessage CreateNewMotorMessage(int current_max_speed,
             if (current_floor == 0)
             {
                 if (requested_floor == 2)
+                {
+
                     cruise_distance = DISTANCE_FROM_GND_TO_P2 - acel_and_decel_distance;
+                }
                 else
+                {
                     cruise_distance = DISTANCE_FROM_GND_TO_P1 - acel_and_decel_distance;
+                }
+
+                up_true = true;
+
 
                 time_to_spend_in_acel = current_max_speed/current_acel;
                 time_to_spend_in_cruise = cruise_distance/current_max_speed;
@@ -318,19 +332,31 @@ MotorMessage CreateNewMotorMessage(int current_max_speed,
                                 //////////Need to do some testing with penthouse-penthouse
                                    ///////cases with various speeds.
                 if (requested_floor == 2)
+                {
+                   up_true = true;
                     cruise_distance = DISTANCE_FROM_P1_TO_P2 - acel_and_decel_distance;
+                }
                 else
-                    cruise_distance = DISTANCE_FROM_GND_TO_P1 - acel_and_decel_distance;
+                {
+                    up_true = false;
 
+                    cruise_distance = DISTANCE_FROM_GND_TO_P1 - acel_and_decel_distance;
+                }
                 time_to_spend_in_acel = current_max_speed/current_acel;
                 time_to_spend_in_cruise = cruise_distance/current_max_speed;
             }
             else if (current_floor == 2)
             {
                 if (requested_floor == 1)
+                {
                     cruise_distance = DISTANCE_FROM_P1_TO_P2 - acel_and_decel_distance;
+                }
                 else
+                {
                     cruise_distance = DISTANCE_FROM_GND_TO_P1 - acel_and_decel_distance;
+                }
+                up_true = false;
+
 
                 time_to_spend_in_acel = current_max_speed/current_acel;
                 time_to_spend_in_cruise = cruise_distance/current_max_speed;
@@ -346,8 +372,8 @@ MotorMessage CreateNewMotorMessage(int current_max_speed,
         motor_message_to_return.m_time_to_spend_in_cruise = time_to_spend_in_cruise;
         motor_message_to_return.m_time_to_spend_in_decel = time_to_spend_in_acel;
         motor_message_to_return.m_emer_flag = false;
-        motor_message_to_return.m_start = false;
-
+        motor_message_to_return.m_start = true;
+        motor_message_to_return.m_up_true = up_true;
         return motor_message_to_return;
 }
 

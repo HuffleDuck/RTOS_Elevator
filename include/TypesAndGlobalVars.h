@@ -56,6 +56,7 @@ typedef struct _MotorMessage
 	int m_time_to_spend_in_decel;
 	bool m_emer_flag;
         bool m_start;
+        bool m_up_true;
 }MotorMessage;
 
 ///////////////////////////All Task Parameter Types////////////////////////
