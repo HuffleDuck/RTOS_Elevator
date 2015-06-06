@@ -1,7 +1,7 @@
 #include "ServiceQueueControlTask.h"
 
 
- QueueHandle_t * service_request_message_queue;
+ QueueHandle_t service_request_message_queue;
 ///////////////////////////////////////
 // Author: Gabriel McDermott
 // Purpose: Takes in requests for elevator service over a message queue.
@@ -22,7 +22,8 @@ void ServiceQueueControlTask(void *param_struct)
 
 
   int emergancy_state_var = 0;
-  service_request_message_queue = parameters_for_you->m_service_request_message_queue;
+
+  service_request_message_queue = xQueueCreate(20, sizeof(ServiceQueueMessage));
   QueueHandle_t service_queue_var = xQueueCreate( 50, sizeof(ServiceQueueMessage));
                                      // Change this to an internal enum maybe.
 
@@ -75,11 +76,10 @@ void ServiceQueueControlTask(void *param_struct)
       //HandleMail(); // All this is huge and gross. Consider dumping it all in
       // function calls.
 //////////////////////////////////////////////////////////////////////////////////
-       if (uxQueueMessagesWaiting(
-              parameters_for_you->m_service_request_message_queue))
+       if (uxQueueMessagesWaiting(service_request_message_queue))
       {
          // read the mail.
-          xQueueReceive( parameters_for_you->m_service_request_message_queue,
+          xQueueReceive( service_request_message_queue,
                         &req_in,
                         0);
           // processes the mail.///////
@@ -208,18 +208,8 @@ void ServiceQueueControlTask(void *param_struct)
                         {
                             new_service = false;
 
-
-                             current_max_speed = current_working_req.m_data;
-                             motor_message_to_send.state = 'S';
-                             motor_message_to_send.m_data = current_max_speed;
-                             motor_message_to_send.m_time_to_spend_in_accel = current_max_speed;
-                             motor_message_to_send.m_time_to_spend_in_cruise = 0;
-                             motor_message_to_send.m_time_to_spend_in_decel = 0;
-                             motor_message_to_send.m_emer_flag = false;
-                             motor_message_to_send.m_start = false;
-                             motor_message_to_send.m_up_true = false;
-                             xQueueSendToBack(parameters_for_you->m_motor_message_queue,
-                                                    &motor_message_to_send,  0 );
+                             current_max_speed = current_working_req.m_data;                       
+                             SendMessageToMotor( 'S', 0, 0, 0, false, false, false, current_max_speed);
                         }
                          if (xSemaphoreTake(parameters_for_you->m_service_done, 0))
                         {
@@ -240,17 +230,7 @@ void ServiceQueueControlTask(void *param_struct)
                        {
                            new_service  = false;
                          current_acel = current_working_req.m_data;
-                         motor_message_to_send.state = 'A';
-                         motor_message_to_send.m_data = current_acel;
-                         motor_message_to_send.m_time_to_spend_in_accel = current_acel;
-                         motor_message_to_send.m_time_to_spend_in_cruise = 0;
-                         motor_message_to_send.m_time_to_spend_in_decel = 0;
-                         motor_message_to_send.m_emer_flag = false;
-                         motor_message_to_send.m_start = false;
-                         motor_message_to_send.m_up_true = false;
-                         xQueueSendToBack(parameters_for_you->m_motor_message_queue,
-                                                &motor_message_to_send,  0 );
-
+                        SendMessageToMotor( 'A', 0, 0, 0, false, false, false, current_acel);
                        }
                        // Do not advance until the motor awknogledges the update.
                         xQueueReceive( service_queue_var,
@@ -289,11 +269,13 @@ void ServiceQueueControlTask(void *param_struct)
                             setLED(8, motor_message_to_send.m_up_true);
                             setLED(7, !motor_message_to_send.m_up_true);
 
-                            xQueueSendToBack(parameters_for_you->m_motor_message_queue,
-                                                &motor_message_to_send,  0 );
+                            SendMessageToMotor( '-', motor_message_to_send.m_time_to_spend_in_accel,
+                                                    motor_message_to_send.m_time_to_spend_in_cruise,
+                                                    motor_message_to_send.m_time_to_spend_in_decel,
+                                                    false, true, motor_message_to_send.m_up_true, 0);
                         }
 
-                        // Check to see if the door is done with the thing we just asked.
+                        // Check to see if the motor is done with the thing we just asked.
                         if (xSemaphoreTake(parameters_for_you->m_service_done, 0))
                         {
                            // So only remove this from the front of the queue
@@ -304,9 +286,9 @@ void ServiceQueueControlTask(void *param_struct)
                              // motor_message_to_send.m_data holds the distance between floors.
                              motor_message_to_send.m_start = false;
                              //
-                             xQueueSendToBack(parameters_for_you->m_motor_message_queue,
-                                                    &motor_message_to_send,  0 );
-                            
+                            SendMessageToMotor( 'D', 0, 0, 0, false, false,
+                                    false, DISTANCE_FROM_GND_TO_P2);
+
                             xQueueReceive( service_queue_var,
                                                         &temp_req,
                                                         0); // throw temp_req away.
@@ -341,8 +323,10 @@ void ServiceQueueControlTask(void *param_struct)
                             setLED(8, motor_message_to_send.m_up_true);
                             setLED(7, !motor_message_to_send.m_up_true);
 
-                            xQueueSendToBack(parameters_for_you->m_motor_message_queue,
-                                                &motor_message_to_send,  0 );
+                            SendMessageToMotor( '-', motor_message_to_send.m_time_to_spend_in_accel,
+                                                    motor_message_to_send.m_time_to_spend_in_cruise,
+                                                    motor_message_to_send.m_time_to_spend_in_decel,
+                                                    false, true, motor_message_to_send.m_up_true, 0);
                         }
 
                         // Check to see if the door is done with the thing we just asked.
@@ -351,14 +335,9 @@ void ServiceQueueControlTask(void *param_struct)
                            // So only remove this from the front of the queue
                             // when the motor signals that it is done.
 
-                             motor_message_to_send.m_data = DISTANCE_FROM_GND_TO_P1;
-                             motor_message_to_send.state = 'D'; // Update the floor position
-                             // motor_message_to_send.m_data holds the distance between floors.
-                             motor_message_to_send.m_start = false;
-                             //
-                             xQueueSendToBack(parameters_for_you->m_motor_message_queue,
-                                                    &motor_message_to_send,  0 );
 
+                             SendMessageToMotor( 'D', 0, 0, 0, false, false,
+                                    false, DISTANCE_FROM_GND_TO_P1);
 
                             xQueueReceive( service_queue_var,
                                                         &temp_req,
@@ -387,8 +366,10 @@ void ServiceQueueControlTask(void *param_struct)
                             setLED(8, motor_message_to_send.m_up_true);
                             setLED(7, !motor_message_to_send.m_up_true);
 
-                            xQueueSendToBack(parameters_for_you->m_motor_message_queue,
-                                                &motor_message_to_send,  0 );
+                            SendMessageToMotor( '-', motor_message_to_send.m_time_to_spend_in_accel,
+                                                    motor_message_to_send.m_time_to_spend_in_cruise,
+                                                    motor_message_to_send.m_time_to_spend_in_decel,
+                                                    false, true, motor_message_to_send.m_up_true, 0);
                         }
 
                         // Check to see if the door is done with the thing we just asked.
@@ -397,18 +378,7 @@ void ServiceQueueControlTask(void *param_struct)
                            // So only remove this from the front of the queue
                             // when the motor signals that it is done.
 
-
-
-                             motor_message_to_send.m_data = 0;
-                             motor_message_to_send.state = 'D'; // Update the floor position
-                             // motor_message_to_send.m_data holds the distance between floors.
-                             motor_message_to_send.m_start = false;
-                             //
-                             xQueueSendToBack(parameters_for_you->m_motor_message_queue,
-                                                    &motor_message_to_send,  0 );
-
-
-
+                            SendMessageToMotor( 'D', 0, 0, 0, false, false, false, 0);
                             xQueueReceive( service_queue_var,
                                                         &temp_req,
                                                         0); // throw temp_req away.
@@ -575,7 +545,7 @@ bool QueueServiceRequest( service_req request_for_service,
                             float data_to_go_with_request)
 {
     ServiceQueueMessage send_this = { request_for_service, data_to_go_with_request};
-    xQueueSendToBack (*service_request_message_queue,
+    xQueueSendToBack (service_request_message_queue,
                             &send_this,  0 );
 
     return 0;

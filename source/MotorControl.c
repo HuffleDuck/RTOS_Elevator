@@ -40,6 +40,7 @@ typedef enum _MOTOR_STATES
 } MOTOR_STATES;
 
 
+QueueHandle_t motor_control_queue;
 
 /*************************************************
  * State Machine that
@@ -50,7 +51,7 @@ static void Motor_Control_Task(void *pvParameters)
 	MotorControl_parameter *parameters_for_you;
         parameters_for_you = (MotorControl_parameter *) pvParameters;
 
-
+        motor_control_queue = xQueueCreate(20, sizeof(MotorMessage));
         MOTOR_STATES STATE = idle;
         MotorMessage temp;
         MotorMessage read_in;
@@ -79,9 +80,9 @@ static void Motor_Control_Task(void *pvParameters)
 
 	while(1)
 	{
-            if (uxQueueMessagesWaiting(parameters_for_you->m_motor_message_queue) > 0)
+            if (uxQueueMessagesWaiting(motor_control_queue) > 0)
             {
-                xQueueReceive( parameters_for_you->m_motor_message_queue,
+                xQueueReceive( motor_control_queue,
                             &read_in,
                             0);
                                 // If state of the message is S,
@@ -287,22 +288,23 @@ static void Motor_LED_Toggle_Task(void *pvParameters)
     }
 
 }
-//
-//int myRound(float round_this)
-//{
-//    float temp = round_this;
-//    int return_this = round_this;
-//    temp = floor(temp);  // drop the decimals
-//    temp = round_this - temp; // nothin' but the decimals.
-//
-//
-//    if (temp >= 0.5 )
-//        return_this = ceil(round_this);
-//    else
-//        return_this = floor(round_this);
-//
-//    return return_this;
-//}
+
+bool SendMessageToMotor( char state, float time_to_acel, float time_to_cruise, float time_to_decel,
+                bool emerg_flag, bool start, bool up_true, float data_to_go_with_request)
+{
+
+     MotorMessage send_this = { state,
+                                time_to_acel,
+                                time_to_cruise,
+                                time_to_decel,
+                                emerg_flag,
+                                start,
+                                up_true,
+                                data_to_go_with_request};
+     return xQueueSendToBack(motor_control_queue, &send_this, 0);
+    //return  xQueueSendToBack (motor_control_queue,
+                            //&send_this,  0 );
+}
 
 void InitMotorControl(void *pvParameters)
 {
@@ -330,3 +332,21 @@ void InitMotorControl(void *pvParameters)
                     1,
                     NULL);
 }
+
+
+//
+//int myRound(float round_this)
+//{
+//    float temp = round_this;
+//    int return_this = round_this;
+//    temp = floor(temp);  // drop the decimals
+//    temp = round_this - temp; // nothin' but the decimals.
+//
+//
+//    if (temp >= 0.5 )
+//        return_this = ceil(round_this);
+//    else
+//        return_this = floor(round_this);
+//
+//    return return_this;
+//}

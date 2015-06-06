@@ -49,8 +49,8 @@ typedef enum
 
 typedef struct _MotorMessage
 {
-	char state;
-	float m_time_to_spend_in_accel;
+        char state;
+        float m_time_to_spend_in_accel;
 	float m_time_to_spend_in_cruise;
 	float m_time_to_spend_in_decel;
 	bool m_emer_flag;
@@ -68,8 +68,6 @@ typedef struct ServiceQueueMessage
 ///////////////////////////All Task Parameter Types////////////////////////
 ////////////////////For giving to Tasks///////////////////////////////////
 typedef struct ServiceQueueControl_parameter {
-     QueueHandle_t m_service_request_message_queue; // IN from "listener" tasks.
-     QueueHandle_t m_motor_message_queue; // OUT to motor control task.
      QueueHandle_t m_door_message_queue; // OUT to door control task.
      SemaphoreHandle_t m_service_done; // IN from both motor and door control
 }  ServiceQueueControl_parameter;
@@ -80,7 +78,6 @@ typedef struct DummyListenerTask_parameter {
 }  DummyListenerTask_parameter;
 
 typedef struct MotorControl_parameter  {
-    QueueHandle_t m_motor_message_queue; // in from service queue
     SemaphoreHandle_t m_service_done; // Out to service queue
     float m_current_speed;
     float m_current_distance;
@@ -92,12 +89,7 @@ typedef struct DoorControl_parameter  {
 } DoorControl_parameter;
 
 
-//Current Emergancy State, ServiceQueueControlTask writes here, and MotorControl reads it.
-static bool EMER_FLAG;
-
-
 /////////////////////////
-
 
 
 
