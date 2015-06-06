@@ -1,5 +1,7 @@
 #include "CLICommands.h"
 #include "UartDriver.h"
+#include "TypesAndGlobalVars.h"
+#include "ServiceQueueControlTask.h"
 
 const xCommandLineInput inputCommands[] = {
     {"ES", "ES: Emergency stop via CLI\r\n", EmergencyStop, 0},
@@ -16,7 +18,7 @@ const xCommandLineInput inputCommands[] = {
     {"t", "t: Ground floor call inside car\r\n", CallToGround, 0},
     {"y", "y: Emergency stop inside car\r\n", EmergencyStop, 0},
     {"u", "u: Emergency stop inside car\r\n", EmergencyClear, 0},
-    {"i", "i: Door Interference\r\n", DoorInterference, 0}
+    {"i", "i: Door Interference\r\n", DoorInterferenceCmd, 0}
 };
 
 static void taskCLI(void * vpParams)
@@ -39,70 +41,109 @@ static void taskCLI(void * vpParams)
     }
 }
 
-
 CLI_FORMAT(EmergencyStop)
 {
-    
+    QueueServiceRequest(EmergStop, 0);
+    return 0;
 }
 
 CLI_FORMAT(EmergencyClear)
 {
-
+    QueueServiceRequest(EmergClear, 0);
+    return 0;
 }
 
-CLI_FORMAT(DoorInterference)
+CLI_FORMAT(DoorInterferenceCmd)
 {
-	
-}
-
-CLI_FORMAT(OpenDoor)
-{
-
-}
-
-CLI_FORMAT(CloseDoor)
-{
-	
+    QueueServiceRequest(DoorInterference, 0);
+    return 0;
 }
 
 CLI_FORMAT(CallToGround)
 {
-	
+    switch(*cS)
+    {
+        case 'q':
+            QueueServiceRequest(CallToGNDInsideCar, 0);
+            break;
+        case 't':
+            QueueServiceRequest(CallToGNDOutsideCar, 0);
+            break;
+    }
+    return 0;
 }
 
 CLI_FORMAT(CallToP1)
 {
-	
+    QueueServiceRequest(CallToP1fromOutsideCar, 0);
+    return 0;
 }
 
 CLI_FORMAT(CallToP2)
 {
-	
+    QueueServiceRequest(CallToP2fromOutsideCar, 0);
+    return 0;
 }
 
 CLI_FORMAT(ChangeMaxSpeed)
 {
-	
+    char * cmd = strtok(cS, " ");
+    int val = atoi(strtok(NULL, " "));
+
+    QueueServiceRequest(ChangeMaxSpeedToN, val);
+    return 0;
 }
 
 CLI_FORMAT(ChangeAccel)
 {
-	
+    char * cmd = strtok(cS, " ");
+    int val = atoi(strtok(NULL, " "));
+
+    QueueServiceRequest(ChangeMaxAccelToN, val);
+    return 0;
 }
 
 CLI_FORMAT(SendToFloor)
 {
-	
+    char * cmd = strtok(cS, " ");
+    int val = atoi(strtok(NULL, " "));
+
+    switch (val)
+    {
+        case 1:
+            QueueServiceRequest(CallToGNDOutsideCar, 0);
+            break;
+        case 2:
+            QueueServiceRequest(CallToP1fromOutsideCar, 0);
+            break;
+        case 3:
+            QueueServiceRequest(CallToP2fromOutsideCar, 0);
+            break;
+        default:
+            UartMessageOut("Floor input invalid");
+            break;
+    }
+
+    return 0;
 }
 
 CLI_FORMAT(TaskStats)
 {
-	
+    static const char taskListHdr[] = "Name\t\tStat\tPri\tS/Space\tTCB\r\n";
+
+    sprintf(wB, taskListHdr);
+    wB += strlen(taskListHdr);
+    vTaskList(wB);
+
+    return 0;
 }
 
 CLI_FORMAT(RunTimeStats)
 {
+    UartMessageOut("wat\r\n");
+    UartMessageOut("Do we have to put out elevator location and speed and stuff\r\n");
 	
+	return 0;
 }
 
 void InitCLISystem()

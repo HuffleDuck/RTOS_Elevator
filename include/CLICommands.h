@@ -19,9 +19,7 @@ void InitCLISystem();
 //CLI Command definitions
 CLI_FORMAT(EmergencyStop);
 CLI_FORMAT(EmergencyClear);
-CLI_FORMAT(DoorInterference);
-CLI_FORMAT(OpenDoor);
-CLI_FORMAT(CloseDoor);
+CLI_FORMAT(DoorInterferenceCmd);
 CLI_FORMAT(CallToGround);
 CLI_FORMAT(CallToP1);
 CLI_FORMAT(CallToP2);

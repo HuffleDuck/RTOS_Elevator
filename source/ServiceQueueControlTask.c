@@ -578,4 +578,5 @@ bool QueueServiceRequest( service_req request_for_service,
     xQueueSendToBack (*service_request_message_queue,
                             &send_this,  0 );
 
+    return 0;
 }
