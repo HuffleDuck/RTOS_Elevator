@@ -140,10 +140,7 @@ CLI_FORMAT(TaskStats)
 
 CLI_FORMAT(RunTimeStats)
 {
-    UartMessageOut("wat\r\n");
-    UartMessageOut("Do we have to put out elevator location and speed and stuff\r\n");
-	
-	return 0;
+    return 0;
 }
 
 void InitCLISystem()
