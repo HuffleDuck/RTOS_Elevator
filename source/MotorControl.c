@@ -142,7 +142,11 @@ static void Motor_Control_Task(void *pvParameters)
                     }
                     if(speed  < MAX_SPEED)
                         speed = speed + (accel_t*RES_PERIOD);
-
+                    else
+                    {
+                        speed = MAX_SPEED;
+                        UartMessageOut("Accel Error! Adjusting!");
+                    }
                     if ( up_true)
                         distance_from_ground = distance_from_ground + (speed*RES_PERIOD);
                     else
@@ -160,6 +164,11 @@ static void Motor_Control_Task(void *pvParameters)
                 break;
 
                 case cruise: // motor maintains speed
+                    if (speed != MAX_SPEED)
+                    {
+                        UartMessageOut("Idel Error! Adjusting!");
+                        speed = MAX_SPEED;
+                    }
                     i = 0;
                 while( i < temp.m_time_to_spend_in_cruise)
                 {
@@ -201,10 +210,11 @@ static void Motor_Control_Task(void *pvParameters)
 
 
 
-                    
-
+                   
                     vTaskDelay(RES_DELAY/portTICK_PERIOD_MS);
-                    if(speed > accel_t && speed > 1)
+
+                        // Try this approach maybe?
+                    if (speed > 0)
                     {
                         speed = speed - (accel_t*RES_PERIOD);
                         if (up_true)
@@ -212,11 +222,26 @@ static void Motor_Control_Task(void *pvParameters)
                         else
                             distance_from_ground = distance_from_ground - (speed*RES_PERIOD);
                         parameters_for_you->m_current_speed = speed;
-                         parameters_for_you->m_current_distance = distance_from_ground;
-                        //PrintSpeedAndPosition(speed, distance_from_ground);
-
-                         //toggleLED(5);
+                        parameters_for_you->m_current_distance = distance_from_ground;
                     }
+                    else
+                    {
+                        speed = 0;
+                        UartMessageOut("Decel Error! Adjusting!");
+                    }
+                    
+//                    if(speed > accel_t && speed > 1) ///?
+//                    {
+//                        speed = speed - (accel_t*RES_PERIOD);
+//                        if (up_true)
+//                            distance_from_ground = distance_from_ground + (speed*RES_PERIOD);
+//                        else
+//                            distance_from_ground = distance_from_ground - (speed*RES_PERIOD);
+//                        parameters_for_you->m_current_speed = speed;
+//                        parameters_for_you->m_current_distance = distance_from_ground;
+//
+//
+//                    }
                 }
 
                 xSemaphoreGive(parameters_for_you->m_service_done);
