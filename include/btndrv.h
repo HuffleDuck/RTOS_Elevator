@@ -9,9 +9,11 @@
 /* Standard includes. */
 #include <stdint.h>
 #include <plib.h>
+#include "CommonIncludes.h"
+#include "TypesAndGlobalVars.h"
 
 uint8_t initializeBTNDriver(void);
-void readBTN(service_req btnval)
+void readBTN(service_req btnval);
 
 
 

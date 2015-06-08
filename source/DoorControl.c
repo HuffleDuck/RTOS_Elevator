@@ -44,7 +44,7 @@ static void DoorControlTask()
     char doormsg[15];
     int i = 0;
 
-
+    SignalDoorDone();
     while(1)
     {
         switch(curr_doorstate)
@@ -61,7 +61,6 @@ static void DoorControlTask()
                     {
                         curr_doorstate = opening;
                     }
-
                     else if(strcmp(doormsg,"OpenDoor") == 0)
                     {
                         curr_doorstate = opening;
@@ -83,12 +82,27 @@ static void DoorControlTask()
                 
                 //need door interference
 
-                if(prev_doorstate == opening)
-                {
-                     vTaskDelay(5000/portTICK_PERIOD_MS);
-                     curr_doorstate = closing;
-                }
+                //if(prev_doorstate == opening)
+                //{
+                     //vTaskDelay(5000/portTICK_PERIOD_MS);
+                     //curr_doorstate = closing;
+                //}
                 
+                    if(strcmp(doormsg,"EmergStop") == 0)
+                    {
+                        curr_doorstate = closing;
+                    }
+                    else if(strcmp(doormsg,"OpenDoor") == 0)
+                    {
+                        curr_doorstate = curr_doorstate;
+                    }
+                    else if(strcmp(doormsg,"CloseDoor") == 0)
+                    {
+                        curr_doorstate = closing;
+                    }
+
+
+
                 if( xQueueReceive( m_door_message_queue , ((void*) &doormsg ) ,( TickType_t ) 10   ) )
                 {
                     if(strcmp(doormsg,"EmergStop") == 0)
@@ -98,6 +112,7 @@ static void DoorControlTask()
                 }
 
                 prev_doorstate = open;
+                SignalDoorDone();
                 break;
             case opening:
                 SignalJustKiddingDoorNotDone();
@@ -115,6 +130,7 @@ static void DoorControlTask()
                     curr_doorstate = open;
 
                  prev_doorstate = opening;
+                 // SignalDoorDone();
                 break;
                 
             case closing:
@@ -127,7 +143,7 @@ static void DoorControlTask()
 
                 curr_doorstate = closed;
                 prev_doorstate = curr_doorstate;
-
+               // SignalDoorDone();
                 
                 break;
 
