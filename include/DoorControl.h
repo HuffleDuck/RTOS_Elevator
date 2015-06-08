@@ -8,6 +8,7 @@ extern "C" {
 //void InitDOORControl(DoorControl_parameter  pvParameter);
 void InitDOORControl();
 void SendToDoorControl(char * string);
+void EmergancyDoorStopNowOhTheHumanity();
 #ifdef	__cplusplus
 }
 #endif

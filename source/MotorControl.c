@@ -143,7 +143,7 @@ static void Motor_Control_Task()
                     else
                     {
                         speed = MAX_SPEED;
-                        UartMessageOut("Accel Error! Adjusting!");
+                        //UartMessageOut("Accel Error! Adjusting!");
                     }
                     if ( up_true)
                         distance_from_ground = distance_from_ground + (speed*RES_PERIOD);
@@ -239,7 +239,7 @@ static void Motor_Control_Task()
                     else
                     {
                         speed = 0;
-                        UartMessageOut("Decel Error! Adjusting!");
+                        //UartMessageOut("Decel Error! Adjusting!");
                     }
                 }
 

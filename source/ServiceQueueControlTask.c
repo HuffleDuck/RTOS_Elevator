@@ -116,27 +116,20 @@ void ServiceQueueControlTask(void *param_struct)
                           // if we just got mail that there is door interferance
                           xQueuePeek(service_queue_var, (void*) &temp_req, 0);
                           UartMessageOut(door_interferance_message);
-                          if (temp_req.m_please_do_this == CloseDoor) // and we are trying to close the door.
+                          if ((temp_req.m_please_do_this == CloseDoor) |
+                               (temp_req.m_please_do_this == OpenDoor))// and we are trying to close the door.
                           {
                               // Stop trying to open it.
-                            xQueueReceive( service_queue_var,
+                             xQueueReceive( service_queue_var,
                                                     &temp_req,
                                                     0); // throw temp_req away.
-                              current_working_req.m_please_do_this = OpenDoor; // open it instead.
 
-                              xQueueSendToFront(service_queue_var,  // like, now.
-                                               (void *) &current_working_req, 0);
-                          }
-                          else if (temp_req.m_please_do_this == OpenDoor) // or if we are trying to open the door.
-                          {
-                                                        // Stop trying to open it.
-                            xQueueReceive( service_queue_var,
-                                                        &temp_req,
-                                                        0); // throw temp_req away.
-
-                              current_working_req.m_please_do_this = CloseDoor; // close it instead.
-                              xQueueSendToFront(service_queue_var,
-                                                (void *) &current_working_req, 0);
+                             EmergancyDoorStopNowOhTheHumanity();
+                             door_open = !door_open;
+//                              current_working_req.m_please_do_this = OpenDoor; // open it instead.
+//
+//                              xQueueSendToFront(service_queue_var,  // like, now.
+//                                               (void *) &current_working_req, 0);
                           }
                           else
                           { // If the thing we are doing right now is something
@@ -465,10 +458,11 @@ void ServiceQueueControlTask(void *param_struct)
 
                 }
           }
-          else // This is an emergancy
-          {
 
-          }
+      }
+      else // This is an emergancy
+      {
+           // UartMessageOut(garbage_mail_message);
       }
 
   }

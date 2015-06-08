@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <plib.h>
 
+#include <TypesAndGlobalVars.h>
 uint8_t initializeLedDriver(void)
 {
     int success = 1;
@@ -17,43 +18,66 @@ uint8_t initializeLedDriver(void)
 
     return success;
 }
-uint8_t readLed(uint8_t ledNum)
+
+bool readLed(uint8_t ledNum)
 {
-    int success = 2;
+    bool success = false;
     int TEMPread = 0;
     if(ledNum == 1)
     {
         if(LATA & 0x01)
            success =  1;
-        if(LATA ^ 0x01)
+        else if(LATA ^ 0x01)
             success = 0;
     }
     if(ledNum == 2)
     {
         if(LATA & 0x02)
            success =  1;
-        if(LATA ^ 0x02)
+        else if(LATA ^ 0x02)
             success = 0;
     }
     if(ledNum == 3)
     {
         if(LATA & 0x04)
            success =  1;
-        if(LATA ^ 0x04)
+        else if(LATA ^ 0x04)
             success = 0;
     }
-	if(ledNum == 7)
+    if (ledNum == 4)
+    {
+         if(LATA & 0x8)
+           success =  1;
+         else if(LATA ^ 0x8)
+            success = 0;
+    }
+    if (ledNum == 5)
+    {
+         if(LATA & 0x10)
+           success =  1;
+         else if(LATA ^ 0x10)
+            success = 0;
+    }
+    if (ledNum == 6)
+    {
+         if(LATA & 0x20)
+           success =  1;
+         else if(LATA ^ 0x20)
+            success = 0;
+    }
+
+    if(ledNum == 7)
     {
         if(LATA & 0x40)
            success =  1;
-        if(LATA ^ 0x40)
+        else if(LATA ^ 0x40)
             success = 0;
     }
-	if(ledNum == 8)
+    if(ledNum == 8)
     {
         if(LATA & 0x80)
            success =  1;
-        if(LATA ^ 0x80)
+        else if(LATA ^ 0x80)
             success = 0;
     }
 	

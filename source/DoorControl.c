@@ -7,11 +7,11 @@
 #include <plib.h>
 
 #include <CommonIncludes.h>
-#include<TypesAndGlobalVars.h>
+#include <TypesAndGlobalVars.h>
 
 static TaskHandle_t DoorControlTaskID = 0;
 static QueueHandle_t m_door_message_queue = 0;
-
+static SemaphoreHandle_t door_emerg_mutex;
 #define MAX
 
 
@@ -41,6 +41,8 @@ static void DoorControlTask()
 
     DoorState curr_doorstate = closed;
     DoorState prev_doorstate = closed;
+    door_emerg_mutex = xSemaphoreCreateMutex();
+    xSemaphoreTake( door_emerg_mutex, 0);
     char doormsg[15];
     int i = 0;
 
@@ -88,6 +90,23 @@ static void DoorControlTask()
                      //curr_doorstate = closing;
                 //}
                 
+//                    if(strcmp(doormsg,"EmergStop") == 0)
+//                    {
+//                        curr_doorstate = closing;
+//                    }
+//                    else if(strcmp(doormsg,"OpenDoor") == 0)
+//                    {
+//                        curr_doorstate = curr_doorstate;
+//                    }
+//                    else if(strcmp(doormsg,"CloseDoor") == 0)
+//                    {
+//                        curr_doorstate = closing;
+//                    }
+
+
+
+                if( xQueueReceive( m_door_message_queue , ((void*) &doormsg ) ,( TickType_t ) 10   ) )
+                {
                     if(strcmp(doormsg,"EmergStop") == 0)
                     {
                         curr_doorstate = closing;
@@ -100,51 +119,99 @@ static void DoorControlTask()
                     {
                         curr_doorstate = closing;
                     }
-
-
-
-                if( xQueueReceive( m_door_message_queue , ((void*) &doormsg ) ,( TickType_t ) 10   ) )
-                {
-                    if(strcmp(doormsg,"EmergStop") == 0)
-                    {
-                        curr_doorstate = emergency;
-                    }
                 }
 
                 prev_doorstate = open;
                 SignalDoorDone();
                 break;
             case opening:
+                setLED(1,1);
+                setLED(2,1);
+                setLED(3,1);
+                setLED(4,1);
                 SignalJustKiddingDoorNotDone();
                 
                 for(i = 1; i <= 4; i++)
                 {
                     vTaskDelay(500/portTICK_PERIOD_MS);
-                    setLED(i,0);
+                    if (xSemaphoreTake( door_emerg_mutex, 0))
+                    {
+                        
+                        i = 4; // early exit. Gross I know.
+                        xSemaphoreGive( door_emerg_mutex); // give this back real quick.
+                    }
+                    else
+                        setLED(i,0);
                 }
 
-                if(strcmp(doormsg,"EmergStop") == 0)
-                    curr_doorstate = emergency;
-                
-                else
-                    curr_doorstate = open;
+                //if(strcmp(doormsg,"EmergStop") == 0)
+                    //curr_doorstate = emergency;
+                //else
+                    //curr_doorstate = open;
+                // So if we had an emergancy, do not touch the state.
+                // if we didn't set the state to next.
 
-                 prev_doorstate = opening;
-                 // SignalDoorDone();
+                 if (xSemaphoreTake( door_emerg_mutex, 0))
+                 {
+                     if  (!readLed(4))// Janky Hacks FTW
+                     {  setLED(4,1);  vTaskDelay(500/portTICK_PERIOD_MS);}
+                     if  (!readLed(3))
+                     {  setLED(3,1);  vTaskDelay(500/portTICK_PERIOD_MS);}
+                     if  (!readLed(2))
+                     {  setLED(2,1);  vTaskDelay(500/portTICK_PERIOD_MS);}
+                     if  (!readLed(1))
+                     {  setLED(1,1);  vTaskDelay(500/portTICK_PERIOD_MS);}
+                        curr_doorstate = closed;
+                        prev_doorstate = closing;
+
+                       //  SignalDoorDone();
+                 }
+                 else
+                 {
+                     curr_doorstate = open;
+                     prev_doorstate = opening;
+                 }
                 break;
                 
             case closing:
-
+                setLED(1,0);
+                setLED(2,0);
+                setLED(3,0);
+                setLED(4,0);
                  for( i = 4; i > 0; i--)
                 {
                     vTaskDelay(500/portTICK_PERIOD_MS);
-                    setLED(i,1);
+                    if (xSemaphoreTake( door_emerg_mutex, 0))
+                    {
+                        xSemaphoreGive( door_emerg_mutex); // give this back real quick.
+                        i = 0;
+                    }
+                    else
+                        setLED(i,1);
                 }
+                if (xSemaphoreTake( door_emerg_mutex, 0))
+                { // Look. Don't make me pry these doors open myself right now.
+                     if  (readLed(1))// Janky Hacks FTW
+                     {  setLED(1,0);  vTaskDelay(500/portTICK_PERIOD_MS);}
+                     if  (readLed(2))
+                     {  setLED(2,0);  vTaskDelay(500/portTICK_PERIOD_MS);}
+                     if  (readLed(3))
+                     {  setLED(3,0);  vTaskDelay(500/portTICK_PERIOD_MS);}
+                     if  (readLed(4))
+                     {  setLED(4,0);  vTaskDelay(500/portTICK_PERIOD_MS);}
 
-                curr_doorstate = closed;
-                prev_doorstate = curr_doorstate;
+                     curr_doorstate = open;
+                     prev_doorstate = opening;
+
+
+                    //  SignalDoorDone(); // So done.
+                }
+                else
+                {
+                    curr_doorstate = closed;
+                    prev_doorstate = curr_doorstate;
                // SignalDoorDone();
-                
+                }
                 break;
 
             case emergency:
@@ -174,6 +241,12 @@ static void DoorControlTask()
     }
    
 }
+
+void EmergancyDoorStopNowOhTheHumanity()
+{
+    xSemaphoreGive( door_emerg_mutex);
+}
+
 /*********************************************
  * initialzes the door control state machine
  * will build a messege queue to communicate with

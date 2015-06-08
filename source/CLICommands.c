@@ -17,7 +17,7 @@ const xCommandLineInput inputCommands[] = {
     {"r", "r: P2 floor call outside car\r\n", CallToP2, 0},
     {"t", "t: Ground floor call inside car\r\n", CallToGround, 0},
     {"y", "y: Emergency stop inside car\r\n", EmergencyStop, 0},
-    {"u", "u: Emergency stop inside car\r\n", EmergencyClear, 0},
+    {"u", "u: Emergency clear inside car\r\n", EmergencyClear, 0},
     {"i", "i: Door Interference\r\n", DoorInterferenceCmd, 0}
 };
 
