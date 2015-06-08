@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-void InitMotorControl(void *pvParameters);
+void InitMotorControl();
 void PrintSpeedAndPosition(float cur_speed, float cur_distance);
 int myRound(float round_this);
 bool SendMessageToMotor( char state, float time_to_acel, float time_to_cruise, float time_to_decel,

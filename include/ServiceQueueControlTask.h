@@ -8,6 +8,9 @@
 
 
 void ServiceQueueControlTask(void *param_struct);
+bool SignalDoorDone();
+bool SignalMotorDone();
+void SignalJustKiddingDoorNotDone();
 MotorMessage CreateNewMotorMessage(float current_max_speed,
                                             float current_acel,
                                             int current_floor,

@@ -5,7 +5,8 @@
 extern "C" {
 #endif
 
-void InitDOORControl(DoorControl_parameter * pvParameter);
+//void InitDOORControl(DoorControl_parameter  pvParameter);
+void InitDOORControl();
 void SendToDoorControl(char * string);
 #ifdef	__cplusplus
 }

@@ -41,15 +41,14 @@ typedef enum _MOTOR_STATES
 
 
 QueueHandle_t motor_control_queue;
-
+float speed = 0; // speed of the car
+float distance_from_ground = 0;
 /*************************************************
  * State Machine that
  * controls the motor
  *************************************************/
-static void Motor_Control_Task(void *pvParameters)
+static void Motor_Control_Task()
 {
-	MotorControl_parameter *parameters_for_you;
-        parameters_for_you = (MotorControl_parameter *) pvParameters;
 
         motor_control_queue = xQueueCreate(20, sizeof(MotorMessage));
         MOTOR_STATES STATE = idle;
@@ -60,9 +59,9 @@ static void Motor_Control_Task(void *pvParameters)
 
         bool start = false;
 	float i = 0; // count for seconds spend
-	float speed = 0; // speed of the car
+	
         float accel_t = 2;
-        float distance_from_ground = 0;
+
         float MAX_SPEED = 20;
         bool up_true;
 
@@ -89,14 +88,14 @@ static void Motor_Control_Task(void *pvParameters)
                 if ( read_in.state == 'S') // read in the new max speed.
                 {
                     MAX_SPEED = read_in.m_data;
-                    xSemaphoreGive(parameters_for_you->m_service_done);
+                    SignalMotorDone();
                 }
                 else if (read_in.state == 'A') // if the state of the message is A
                 {                           // read in the new acel.
                     accel_t  = read_in.m_data;
                     if (accel_t > MAX_SPEED)
                         accel_t = MAX_SPEED;
-                    xSemaphoreGive(parameters_for_you->m_service_done);
+                    SignalMotorDone();
                 }
                 else if(read_in.state == 'D')
                 {
@@ -114,8 +113,7 @@ static void Motor_Control_Task(void *pvParameters)
             {
                 case idle: //motor not moving
                 speed = 0;
-                parameters_for_you->m_current_speed = speed;
-                parameters_for_you->m_current_distance = distance_from_ground;
+
                 //PrintSpeedAndPosition(speed, distance_from_ground);
                 vTaskDelay(RES_DELAY/portTICK_PERIOD_MS);
 
@@ -137,7 +135,7 @@ static void Motor_Control_Task(void *pvParameters)
                      i += RES_PERIOD;
                     if (temp.m_emer_flag)
                     {
-                        xSemaphoreGive(parameters_for_you->m_service_done);
+                        SignalMotorDone();
                         STATE = idle;
                     }
                     if(speed  < MAX_SPEED)
@@ -151,8 +149,6 @@ static void Motor_Control_Task(void *pvParameters)
                         distance_from_ground = distance_from_ground + (speed*RES_PERIOD);
                     else
                         distance_from_ground = distance_from_ground - (speed*RES_PERIOD);
-                    parameters_for_you->m_current_speed = speed;
-                    parameters_for_you->m_current_distance = distance_from_ground;
                     //PrintSpeedAndPosition(speed, distance_from_ground);
 
                     vTaskDelay(RES_DELAY/portTICK_PERIOD_MS);
@@ -177,7 +173,7 @@ static void Motor_Control_Task(void *pvParameters)
                     //while m_time_to_spend
                     if ( temp.m_emer_flag)
                     {
-                           xSemaphoreGive(parameters_for_you->m_service_done);
+                           SignalMotorDone();
                            STATE = idle;
                     }
                     
@@ -187,8 +183,7 @@ static void Motor_Control_Task(void *pvParameters)
                         distance_from_ground = distance_from_ground - (speed*RES_PERIOD);
 
                     vTaskDelay( RES_DELAY/portTICK_PERIOD_MS  );
-                    parameters_for_you->m_current_speed = speed;
-                    parameters_for_you->m_current_distance = distance_from_ground;
+
                     //toggleLED(5);
                 }
 
@@ -204,7 +199,7 @@ static void Motor_Control_Task(void *pvParameters)
                     i += RES_PERIOD;
                     if (temp.m_emer_flag)
                     {
-                          xSemaphoreGive(parameters_for_you->m_service_done);
+                           SignalMotorDone();
                            STATE = idle;
                     }
 
@@ -214,23 +209,7 @@ static void Motor_Control_Task(void *pvParameters)
                     vTaskDelay(RES_DELAY/portTICK_PERIOD_MS);
 
                         // Try this approach maybe?
-                    if (speed > 0)
-                    {
-                        speed = speed - (accel_t*RES_PERIOD);
-                        if (up_true)
-                            distance_from_ground = distance_from_ground + (speed*RES_PERIOD);
-                        else
-                            distance_from_ground = distance_from_ground - (speed*RES_PERIOD);
-                        parameters_for_you->m_current_speed = speed;
-                        parameters_for_you->m_current_distance = distance_from_ground;
-                    }
-                    else
-                    {
-                        speed = 0;
-                        UartMessageOut("Decel Error! Adjusting!");
-                    }
-                    
-//                    if(speed > accel_t && speed > 1) ///?
+//                    if (speed > 0)
 //                    {
 //                        speed = speed - (accel_t*RES_PERIOD);
 //                        if (up_true)
@@ -239,18 +218,38 @@ static void Motor_Control_Task(void *pvParameters)
 //                            distance_from_ground = distance_from_ground - (speed*RES_PERIOD);
 //                        parameters_for_you->m_current_speed = speed;
 //                        parameters_for_you->m_current_distance = distance_from_ground;
-//
-//
 //                    }
+//                    else
+//                    {
+//                        speed = 0;
+//                        UartMessageOut("Decel Error! Adjusting!");
+//                    }
+                    
+                    if(speed > accel_t && speed > 1) ///?
+                    {
+                        speed = speed - (accel_t*RES_PERIOD);
+                        if (up_true)
+                            distance_from_ground = distance_from_ground + (speed*RES_PERIOD);
+                        else
+                            distance_from_ground = distance_from_ground - (speed*RES_PERIOD);
+
+
+
+                    }
+                    else
+                    {
+                        speed = 0;
+                        UartMessageOut("Decel Error! Adjusting!");
+                    }
                 }
 
-                xSemaphoreGive(parameters_for_you->m_service_done);
+                SignalMotorDone();
                 STATE = idle;
                 start = false;
                 break;
 
                 default:
-                 xSemaphoreGive(parameters_for_you->m_service_done);
+                 SignalMotorDone();
                 STATE = idle;
                 start = false;
                 break;
@@ -271,17 +270,16 @@ void PrintSpeedAndPosition(float cur_speed, float cur_distance)
     UartMessageOut(print_cur_dist);
 };
 
-static void PrintSpeedAndPositionTask(void *pvParameters)
+static void PrintSpeedAndPositionTask()
 {
-    MotorControl_parameter *parameters_for_you;
-    parameters_for_you = (MotorControl_parameter *) pvParameters;
+
     float toggle_rate = 0;
     float cur_speed = 0;
     float cur_dist = 0;
     while(1)
     {
-        cur_speed = parameters_for_you->m_current_speed;
-        cur_dist = parameters_for_you->m_current_distance;
+        cur_speed = speed;
+        cur_dist = distance_from_ground;
         if (cur_speed > 0)
         {
             PrintSpeedAndPosition(cur_speed, cur_dist);
@@ -290,16 +288,15 @@ static void PrintSpeedAndPositionTask(void *pvParameters)
     }
 }
 
-static void Motor_LED_Toggle_Task(void *pvParameters)
+static void Motor_LED_Toggle_Task()
 {
-    MotorControl_parameter *parameters_for_you;
-    parameters_for_you = (MotorControl_parameter *) pvParameters;
+
     float toggle_rate = 0;
     float cur_speed = 0;
     while (1)
     {
 
-        cur_speed = parameters_for_you->m_current_speed;
+        cur_speed = speed;
         if (cur_speed > 0)
         {
             toggle_rate = (cur_speed / 10) * 1000;
@@ -331,29 +328,27 @@ bool SendMessageToMotor( char state, float time_to_acel, float time_to_cruise, f
                             //&send_this,  0 );
 }
 
-void InitMotorControl(void *pvParameters)
+void InitMotorControl()
 {
-    MotorControl_parameter *parameters_for_you;
-    parameters_for_you = (MotorControl_parameter *) pvParameters;
 
     xTaskCreate(   Motor_Control_Task,
                     "MotorControlTask",
                     configMINIMAL_STACK_SIZE,
-                    (void *) parameters_for_you,
+                    NULL,
                     1,
                     &MotorControlTask);
 
     xTaskCreate(   PrintSpeedAndPositionTask,
                     "MotorPrintTask",
                     configMINIMAL_STACK_SIZE,
-                    (void *) parameters_for_you,
+                    NULL,
                     1,
                     NULL);
 
     xTaskCreate( Motor_LED_Toggle_Task,
                     "MotorLEDToggleTask",
                     configMINIMAL_STACK_SIZE,
-                    (void *) parameters_for_you,
+                    NULL,
                     1,
                     NULL);
 }

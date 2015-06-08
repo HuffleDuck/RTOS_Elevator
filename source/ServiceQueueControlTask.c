@@ -2,6 +2,8 @@
 
 
  QueueHandle_t service_request_message_queue;
+ static SemaphoreHandle_t motor_done_mutex;
+ static SemaphoreHandle_t door_done_mutex;
 ///////////////////////////////////////
 // Author: Gabriel McDermott
 // Purpose: Takes in requests for elevator service over a message queue.
@@ -19,7 +21,8 @@ void ServiceQueueControlTask(void *param_struct)
   ServiceQueueMessage current_working_req;
   MotorMessage motor_message_to_send;
 
-
+  door_done_mutex = xSemaphoreCreateMutex();
+  motor_done_mutex = xSemaphoreCreateMutex();
 
   int emergancy_state_var = 0;
 
@@ -30,8 +33,8 @@ void ServiceQueueControlTask(void *param_struct)
   volatile int current_floor = 0;
   float current_max_speed = 20;
   float current_acel = 2;
-
-    bool new_service = true;
+  bool door_open = false;
+  bool new_service = true;
 
     char service_queue_boot_message[35] = "//////Elevator booting//////////\r\n";
     service_queue_boot_message[35] = 0x00; // Null terminate
@@ -53,6 +56,11 @@ void ServiceQueueControlTask(void *param_struct)
   floor_gnd_message[23] = 0x00;
   floor_p1_message[27] = 0x00;
   floor_p2_message[28] = 0x00;
+  /// All Door Strings ///////
+  char door_opened_message[15] = "Door Opened.\r\n";
+  char door_closed_message[14] = "Door Closed.\r\n";
+  door_opened_message [15] = 0x00;
+  door_closed_message[14] = 0x00;
 /////////////////All Mail Handling Strings///////////////////////////////////////////
     char emergancy_lockout_message[81] = "Emergency Lockdown in Progress.\r\n"
                                     "Clear Emergancy Lockdown to Resume Operation.\r\n";
@@ -68,8 +76,10 @@ void ServiceQueueControlTask(void *param_struct)
       emergancy_set_message[21] = 0x00;
       emergancy_clear_message[23] = 0x00;
       ////////////////////////////////////////////////////////////////////////
-    while (xSemaphoreTake(parameters_for_you->m_service_done, 0)) // Clear out the semaphore
+    while (xSemaphoreTake(motor_done_mutex, 0)) // Clear out the semaphore
+    while (xSemaphoreTake(door_done_mutex, 0)) // Clear out the semaphore
 
+;
   while (1)
   {
 
@@ -211,7 +221,7 @@ void ServiceQueueControlTask(void *param_struct)
                              current_max_speed = current_working_req.m_data;                       
                              SendMessageToMotor( 'S', 0, 0, 0, false, false, false, current_max_speed);
                         }
-                         if (xSemaphoreTake(parameters_for_you->m_service_done, 0))
+                         if (xSemaphoreTake(motor_done_mutex, 0))
                         {
 
                              xQueueReceive( service_queue_var,
@@ -237,7 +247,7 @@ void ServiceQueueControlTask(void *param_struct)
                                                         &temp_req,
                                                         0); // throw temp_req away.
 
-                        if (xSemaphoreTake(parameters_for_you->m_service_done, 0))
+                        if (xSemaphoreTake(motor_done_mutex, 0))
                         {
                            // So only remove this from the front of the queue
                             // when the motor signals that it is done.
@@ -276,7 +286,7 @@ void ServiceQueueControlTask(void *param_struct)
                         }
 
                         // Check to see if the motor is done with the thing we just asked.
-                        if (xSemaphoreTake(parameters_for_you->m_service_done, 0))
+                        if (xSemaphoreTake(motor_done_mutex, 0))
                         {
                            // So only remove this from the front of the queue
                             // when the motor signals that it is done.
@@ -330,7 +340,7 @@ void ServiceQueueControlTask(void *param_struct)
                         }
 
                         // Check to see if the door is done with the thing we just asked.
-                        if (xSemaphoreTake(parameters_for_you->m_service_done, 0))
+                        if (xSemaphoreTake(motor_done_mutex, 0))
                         {
                            // So only remove this from the front of the queue
                             // when the motor signals that it is done.
@@ -347,46 +357,57 @@ void ServiceQueueControlTask(void *param_struct)
                             new_service = true;
                         }
                         break;
-                    case CallToGNDInsideCar:
+                    case OpenDoor:
                         if (new_service == true)
                         {
 
                             new_service = false; // only send the message once.
                                             // we will then wait and check mail
                                            // until the door signals its done.
-                            motor_message_to_send = CreateNewMotorMessage(current_max_speed,
-                                                                            current_acel,
-                                                                            current_floor,
-                                                                                        0);
+                            SendToDoorControl("OpenDoor");
 
-                            motor_message_to_send.m_emer_flag = false;
-                            motor_message_to_send.m_start = true;
-
-                            
-                            setLED(8, motor_message_to_send.m_up_true);
-                            setLED(7, !motor_message_to_send.m_up_true);
-
-                            SendMessageToMotor( '-', motor_message_to_send.m_time_to_spend_in_accel,
-                                                    motor_message_to_send.m_time_to_spend_in_cruise,
-                                                    motor_message_to_send.m_time_to_spend_in_decel,
-                                                    false, true, motor_message_to_send.m_up_true, 0);
                         }
 
                         // Check to see if the door is done with the thing we just asked.
-                        if (xSemaphoreTake(parameters_for_you->m_service_done, 0))
+                        if (xSemaphoreTake(door_done_mutex, 0))
                         {
                            // So only remove this from the front of the queue
                             // when the motor signals that it is done.
 
-                            SendMessageToMotor( 'D', 0, 0, 0, false, false, false, 0);
                             xQueueReceive( service_queue_var,
                                                         &temp_req,
                                                         0); // throw temp_req away.
-                            UartMessageOut(floor_gnd_message);
-                            current_floor = 0; // we are on the ground floor now.
+                            UartMessageOut(door_opened_message);
+                            door_open = true;
                             new_service = true;
                         }
                         break;
+                   case CloseDoor:
+                        if (new_service == true)
+                        {
+
+                            new_service = false; // only send the message once.
+                                            // we will then wait and check mail
+                                           // until the door signals its done.
+                            SendToDoorControl("CloseDoor");
+
+                        }
+
+                        // Check to see if the door is done with the thing we just asked.
+                        if (xSemaphoreTake(door_done_mutex, 0))
+                        {
+                           // So only remove this from the front of the queue
+                            // when the motor signals that it is done.
+
+                            xQueueReceive( service_queue_var,
+                                                        &temp_req,
+                                                        0); // throw temp_req away.
+                            UartMessageOut(door_closed_message);
+                            door_open = false;
+                            new_service = true;
+                        }
+                        break;
+                        
                     default: 
                         break;
 
@@ -541,12 +562,31 @@ MotorMessage CreateNewMotorMessage(float current_max_speed,
         return motor_message_to_return;
 }
 
+
+bool SignalDoorDone()
+{
+    return xSemaphoreGive(door_done_mutex);
+}
+bool SignalMotorDone()
+{
+    return xSemaphoreGive(motor_done_mutex);
+}
+
+void SignalJustKiddingDoorNotDone()
+{
+    xSemaphoreTake(door_done_mutex, portMAX_DELAY);
+}
+
 bool QueueServiceRequest( service_req request_for_service,
                             float data_to_go_with_request)
 {
     ServiceQueueMessage send_this = { request_for_service, data_to_go_with_request};
-    xQueueSendToBack (service_request_message_queue,
-                            &send_this,  0 );
-
-    return 0;
+    if (service_request_message_queue != NULL)
+    {
+        xQueueSendToBack (service_request_message_queue,
+                                &send_this,  0 );
+        return true;
+    }
+    else
+        return false;
 }

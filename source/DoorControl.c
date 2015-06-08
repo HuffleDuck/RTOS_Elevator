@@ -36,13 +36,14 @@ typedef enum _DoorState
  *  emergency - stays in emergency mode until emergency is cleared
  ********************************************/
 
-static void DoorControlTask(DoorControl_parameter * pvParameter)
+static void DoorControlTask()
 {
-   
+
     DoorState curr_doorstate = closed;
     DoorState prev_doorstate = closed;
     char doormsg[15];
     int i = 0;
+
 
     while(1)
     {
@@ -72,7 +73,7 @@ static void DoorControlTask(DoorControl_parameter * pvParameter)
 
                     prev_doorstate = closed;
                 }
-                 xSemaphoreGive(pvParameter.m_service_done, portMAX_DELAY);
+                SignalDoorDone();
                 break;
             case open:
                 setLED(1,0);
@@ -99,7 +100,7 @@ static void DoorControlTask(DoorControl_parameter * pvParameter)
                 prev_doorstate = open;
                 break;
             case opening:
-                xSemaphoreTake(pvParameter.m_service_done, portMAX_DELAY);
+                SignalJustKiddingDoorNotDone();
                 
                 for(i = 1; i <= 4; i++)
                 {
@@ -162,18 +163,18 @@ static void DoorControlTask(DoorControl_parameter * pvParameter)
  * will build a messege queue to communicate with
  *
  ********************************************/
-void InitDOORControl(DoorControl_parameter * pvParameter)
+void InitDOORControl()
 {
-    
+
     char msg[25];
-    
-   m_door_message_queue = xQueueCreate(20,sizeof(msg));
+
+     m_door_message_queue = xQueueCreate(20,sizeof(msg));
      xTaskCreate(   DoorControlTask,
                     "DoorControlTask",
                     configMINIMAL_STACK_SIZE,
-                    (void*) &pvParameter,
+                    NULL,
                     1,
-                    &DoorControlTaskID);
+                    DoorControlTaskID);
 }
 /*********************************************
  * Used to send commands to door control
