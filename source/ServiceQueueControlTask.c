@@ -159,12 +159,15 @@ void ServiceQueueControlTask(void *param_struct)
                           xQueueSendToBack(service_queue_var, (void*) &req_in, 0 );
                           break;
                       case CallToGNDOutsideCar:
+                          req_in.m_please_do_this = CallToGNDInsideCar;
                           xQueueSendToBack(service_queue_var, (void*) &req_in, 0 );
                           break;
                       case CallToP1fromOutsideCar:
+                          req_in.m_please_do_this = CallToP1InsideCar;
                           xQueueSendToBack(service_queue_var, (void*) &req_in, 0 );
                           break;
                       case CallToP2fromOutsideCar:
+                          req_in.m_please_do_this = CallToP2InsideCar;
                           xQueueSendToBack(service_queue_var, (void*) &req_in, 0 );
                           break;
                       case OpenDoor:
@@ -308,9 +311,7 @@ void ServiceQueueControlTask(void *param_struct)
                            new_service = true;
                            
                            // Round the motors distance to the floor up.
-                          
-                           
-       
+          
                         }
                         break;
 
@@ -354,6 +355,51 @@ void ServiceQueueControlTask(void *param_struct)
                                                         0); // throw temp_req away.
                             UartMessageOut(floor_p1_message);
                             current_floor = 1; // we are on the ground floor now.
+                            new_service = true;
+                        }
+                        break;
+
+
+                    case CallToGNDInsideCar:
+                        if (new_service == true)
+                        {
+
+                            new_service = false; // only send the message once.
+                                            // we will then wait and check mail
+                                           // until the door signals its done.
+                            motor_message_to_send = CreateNewMotorMessage(current_max_speed,
+                                                                            current_acel,
+                                                                            current_floor,
+                                                                                      0);
+
+                            motor_message_to_send.m_emer_flag = false;
+                            motor_message_to_send.m_start = true;
+
+
+                            setLED(8, motor_message_to_send.m_up_true);
+                            setLED(7, !motor_message_to_send.m_up_true);
+
+                            SendMessageToMotor( '-', motor_message_to_send.m_time_to_spend_in_accel,
+                                                    motor_message_to_send.m_time_to_spend_in_cruise,
+                                                    motor_message_to_send.m_time_to_spend_in_decel,
+                                                    false, true, motor_message_to_send.m_up_true, 0);
+                        }
+
+                        // Check to see if the door is done with the thing we just asked.
+                        if (xSemaphoreTake(motor_done_mutex, 0))
+                        {
+                           // So only remove this from the front of the queue
+                            // when the motor signals that it is done.
+
+
+                             SendMessageToMotor( 'D', 0, 0, 0, false, false,
+                                    false,0);
+
+                            xQueueReceive( service_queue_var,
+                                                        &temp_req,
+                                                        0); // throw temp_req away.
+                            UartMessageOut(floor_gnd_message);
+                            current_floor = 0; // we are on the ground floor now.
                             new_service = true;
                         }
                         break;
@@ -408,7 +454,11 @@ void ServiceQueueControlTask(void *param_struct)
                         }
                         break;
                         
-                    default: 
+                    default:
+                        UartMessageOut(garbage_mail_message);
+                        xQueueReceive( service_queue_var,
+                                                        &temp_req,
+                                                        0); // throw temp_req away.
                         break;
 
 

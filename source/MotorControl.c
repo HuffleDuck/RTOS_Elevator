@@ -162,9 +162,9 @@ static void Motor_Control_Task()
                 case cruise: // motor maintains speed
                     if (speed != MAX_SPEED)
                     {
-                        UartMessageOut("Idel Error! Adjusting!");
-                        speed = MAX_SPEED;
-                    }
+                        //UartMessageOut("Idel Error! Adjusting!");
+                        //speed = MAX_SPEED; // If you are just passing through
+                    }   // this state once, this adjustment is bad.
                     i = 0;
                 while( i < temp.m_time_to_spend_in_cruise)
                 {

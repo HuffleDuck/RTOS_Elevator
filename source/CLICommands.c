@@ -154,4 +154,13 @@ void InitCLISystem()
     {
         FreeRTOS_CLIRegisterCommand(inputCommands + i);
     }
+
+
+    xTaskCreate(taskCLI,
+            "CLI_task",
+            configMINIMAL_STACK_SIZE,
+            NULL,
+            1,
+            NULL);
+
 }
