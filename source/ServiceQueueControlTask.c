@@ -18,11 +18,15 @@ void ServiceQueueControlTask(void *param_struct)
   parameters_for_you = (ServiceQueueControl_parameter *) param_struct;
   ServiceQueueMessage req_in;
   ServiceQueueMessage temp_req;
+  ServiceQueueMessage temp_req2;
+  ServiceQueueMessage temp_req3;
+  ServiceQueueMessage temp_req4;
   ServiceQueueMessage current_working_req;
   MotorMessage motor_message_to_send;
 
   door_done_mutex = xSemaphoreCreateMutex();
   motor_done_mutex = xSemaphoreCreateMutex();
+
 
   int emergancy_state_var = 0;
 
@@ -76,10 +80,10 @@ void ServiceQueueControlTask(void *param_struct)
       emergancy_set_message[21] = 0x00;
       emergancy_clear_message[23] = 0x00;
       ////////////////////////////////////////////////////////////////////////
-    while (xSemaphoreTake(motor_done_mutex, 0)) // Clear out the semaphore
-    while (xSemaphoreTake(door_done_mutex, 0)) // Clear out the semaphore
+    while (xSemaphoreTake(motor_done_mutex, 0)); // Clear out the semaphore
+    while (xSemaphoreTake(door_done_mutex, 0)); // Clear out the semaphore
 
-;
+
   while (1)
   {
 
@@ -143,25 +147,73 @@ void ServiceQueueControlTask(void *param_struct)
                           break;
                        // Essentially all defaults. Queue without further modification.
                       case CallToGNDInsideCar:
+                          temp_req.m_please_do_this = CloseDoor;
+                          temp_req2.m_please_do_this = OpenDoor;
+                          temp_req3.m_please_do_this = DoorWait;
+                          temp_req4.m_please_do_this = CloseDoor;
+                          xQueueSendToBack(service_queue_var, (void*) &temp_req, 0 );
                           xQueueSendToBack(service_queue_var, (void*) &req_in, 0 );
+                          xQueueSendToBack(service_queue_var, (void*) &temp_req2, 0 );
+                          xQueueSendToBack(service_queue_var, (void*) &temp_req3, 0 );
+                          xQueueSendToBack(service_queue_var, (void*) &temp_req4, 0 );
                          break;
                       case CallToP1InsideCar:
+                          temp_req.m_please_do_this = CloseDoor;
+                          temp_req2.m_please_do_this = OpenDoor;
+                          temp_req3.m_please_do_this = DoorWait;
+                          temp_req4.m_please_do_this = CloseDoor;
+                          xQueueSendToBack(service_queue_var, (void*) &temp_req, 0 );
                           xQueueSendToBack(service_queue_var, (void*) &req_in, 0 );
+                          xQueueSendToBack(service_queue_var, (void*) &temp_req2, 0 );
+                          xQueueSendToBack(service_queue_var, (void*) &temp_req3, 0 );
+                          xQueueSendToBack(service_queue_var, (void*) &temp_req4, 0 );
                           break;
                       case CallToP2InsideCar:
+                          temp_req.m_please_do_this = CloseDoor;
+                          temp_req2.m_please_do_this = OpenDoor;
+                          temp_req3.m_please_do_this = DoorWait;
+                          temp_req4.m_please_do_this = CloseDoor;
+                          xQueueSendToBack(service_queue_var, (void*) &temp_req, 0 );
                           xQueueSendToBack(service_queue_var, (void*) &req_in, 0 );
+                          xQueueSendToBack(service_queue_var, (void*) &temp_req2, 0 );
+                          xQueueSendToBack(service_queue_var, (void*) &temp_req3, 0 );
+                          xQueueSendToBack(service_queue_var, (void*) &temp_req4, 0 );
                           break;
                       case CallToGNDOutsideCar:
                           req_in.m_please_do_this = CallToGNDInsideCar;
+                          temp_req.m_please_do_this = CloseDoor;
+                          temp_req2.m_please_do_this = OpenDoor;
+                          temp_req3.m_please_do_this = DoorWait;
+                          temp_req4.m_please_do_this = CloseDoor;
+                          xQueueSendToBack(service_queue_var, (void*) &temp_req, 0 );
                           xQueueSendToBack(service_queue_var, (void*) &req_in, 0 );
+                          xQueueSendToBack(service_queue_var, (void*) &temp_req2, 0 );
+                          xQueueSendToBack(service_queue_var, (void*) &temp_req3, 0 );
+                          xQueueSendToBack(service_queue_var, (void*) &temp_req4, 0 );
                           break;
                       case CallToP1fromOutsideCar:
-                          req_in.m_please_do_this = CallToP1InsideCar;
+                           req_in.m_please_do_this = CallToP1InsideCar;
+                          temp_req.m_please_do_this = CloseDoor;
+                          temp_req2.m_please_do_this = OpenDoor;
+                          temp_req3.m_please_do_this = DoorWait;
+                          temp_req4.m_please_do_this = CloseDoor;
+                          xQueueSendToBack(service_queue_var, (void*) &temp_req, 0 );
                           xQueueSendToBack(service_queue_var, (void*) &req_in, 0 );
+                          xQueueSendToBack(service_queue_var, (void*) &temp_req2, 0 );
+                          xQueueSendToBack(service_queue_var, (void*) &temp_req3, 0 );
+                          xQueueSendToBack(service_queue_var, (void*) &temp_req4, 0 );
                           break;
                       case CallToP2fromOutsideCar:
-                          req_in.m_please_do_this = CallToP2InsideCar;
+                           req_in.m_please_do_this = CallToP2InsideCar;
+                          temp_req.m_please_do_this = CloseDoor;
+                          temp_req2.m_please_do_this = OpenDoor;
+                          temp_req3.m_please_do_this = DoorWait;
+                          temp_req4.m_please_do_this = CloseDoor;
+                          xQueueSendToBack(service_queue_var, (void*) &temp_req, 0 );
                           xQueueSendToBack(service_queue_var, (void*) &req_in, 0 );
+                          xQueueSendToBack(service_queue_var, (void*) &temp_req2, 0 );
+                          xQueueSendToBack(service_queue_var, (void*) &temp_req3, 0 );
+                          xQueueSendToBack(service_queue_var, (void*) &temp_req4, 0 );
                           break;
                       case OpenDoor:
                           xQueueSendToBack(service_queue_var, (void*) &req_in, 0 );
@@ -272,8 +324,8 @@ void ServiceQueueControlTask(void *param_struct)
                             motor_message_to_send.m_start = true;
 
 
-                            setLED(8, motor_message_to_send.m_up_true);
-                            setLED(7, !motor_message_to_send.m_up_true);
+                            setLED(7, motor_message_to_send.m_up_true);
+                            setLED(6, !motor_message_to_send.m_up_true);
 
                             SendMessageToMotor( '-', motor_message_to_send.m_time_to_spend_in_accel,
                                                     motor_message_to_send.m_time_to_spend_in_cruise,
@@ -324,8 +376,8 @@ void ServiceQueueControlTask(void *param_struct)
                             motor_message_to_send.m_start = true;
 
 
-                            setLED(8, motor_message_to_send.m_up_true);
-                            setLED(7, !motor_message_to_send.m_up_true);
+                            setLED(7, motor_message_to_send.m_up_true);
+                            setLED(6, !motor_message_to_send.m_up_true);
 
                             SendMessageToMotor( '-', motor_message_to_send.m_time_to_spend_in_accel,
                                                     motor_message_to_send.m_time_to_spend_in_cruise,
@@ -360,6 +412,9 @@ void ServiceQueueControlTask(void *param_struct)
                             new_service = false; // only send the message once.
                                             // we will then wait and check mail
                                            // until the door signals its done.
+
+
+
                             motor_message_to_send = CreateNewMotorMessage(current_max_speed,
                                                                             current_acel,
                                                                             current_floor,
@@ -369,8 +424,8 @@ void ServiceQueueControlTask(void *param_struct)
                             motor_message_to_send.m_start = true;
 
 
-                            setLED(8, motor_message_to_send.m_up_true);
-                            setLED(7, !motor_message_to_send.m_up_true);
+                            setLED(7, motor_message_to_send.m_up_true);
+                            setLED(6, !motor_message_to_send.m_up_true);
 
                             SendMessageToMotor( '-', motor_message_to_send.m_time_to_spend_in_accel,
                                                     motor_message_to_send.m_time_to_spend_in_cruise,
@@ -421,6 +476,30 @@ void ServiceQueueControlTask(void *param_struct)
                             new_service = true;
                         }
                         break;
+                    case DoorWait:
+                        if (new_service == true)
+                        {
+
+                            new_service = false; // only send the message once.
+                                            // we will then wait and check mail
+                                           // until the door signals its done.
+                            SendToDoorControl("TakeFive");
+
+                        }
+
+                        // Check to see if the door is done with the thing we just asked.
+                        if (xSemaphoreTake(door_done_mutex, 0))
+                        {
+                           // So only remove this from the front of the queue
+                            // when the motor signals that it is done.
+
+                            xQueueReceive( service_queue_var,
+                                                        &temp_req,
+                                                        0); // throw temp_req away.
+                            new_service = true;
+                        }
+                        break;
+
                    case CloseDoor:
                         if (new_service == true)
                         {
@@ -618,7 +697,7 @@ bool SignalMotorDone()
 
 void SignalJustKiddingDoorNotDone()
 {
-    xSemaphoreTake(door_done_mutex, portMAX_DELAY);
+    xSemaphoreTake(door_done_mutex, 0);
 }
 
 bool QueueServiceRequest( service_req request_for_service,

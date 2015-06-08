@@ -27,6 +27,7 @@ typedef enum
 	CallToP2fromOutsideCar,
 	ChangeMaxSpeedToN, //N will be an int packaged up with this bad boy
 	ChangeMaxAccelToN,
+                DoorWait,
 } service_req;
 //
 //char [][] SERVICE_REQ

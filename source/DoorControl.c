@@ -22,6 +22,7 @@ typedef enum _DoorState
     opening,
     closing,
     emergency,
+    take_five,
     
 
 }DoorState;
@@ -70,11 +71,18 @@ static void DoorControlTask()
                     else if(strcmp(doormsg,"CloseDoor") == 0)
                     {
                         curr_doorstate = curr_doorstate;
+                        SignalDoorDone();
+                    }
+                    else if (strcmp(doormsg, "TakeFive") == 0)
+                    {
+                        curr_doorstate = take_five;
                     }
 
                     prev_doorstate = closed;
                 }
-                SignalDoorDone();
+
+                    //SignalDoorDone();
+                
                 break;
             case open:
                 setLED(1,0);
@@ -82,29 +90,6 @@ static void DoorControlTask()
                 setLED(3,0);
                 setLED(4,0);
                 
-                //need door interference
-
-                //if(prev_doorstate == opening)
-                //{
-                     //vTaskDelay(5000/portTICK_PERIOD_MS);
-                     //curr_doorstate = closing;
-                //}
-                
-//                    if(strcmp(doormsg,"EmergStop") == 0)
-//                    {
-//                        curr_doorstate = closing;
-//                    }
-//                    else if(strcmp(doormsg,"OpenDoor") == 0)
-//                    {
-//                        curr_doorstate = curr_doorstate;
-//                    }
-//                    else if(strcmp(doormsg,"CloseDoor") == 0)
-//                    {
-//                        curr_doorstate = closing;
-//                    }
-
-
-
                 if( xQueueReceive( m_door_message_queue , ((void*) &doormsg ) ,( TickType_t ) 10   ) )
                 {
                     if(strcmp(doormsg,"EmergStop") == 0)
@@ -114,22 +99,26 @@ static void DoorControlTask()
                     else if(strcmp(doormsg,"OpenDoor") == 0)
                     {
                         curr_doorstate = curr_doorstate;
+                        SignalDoorDone();
                     }
                     else if(strcmp(doormsg,"CloseDoor") == 0)
                     {
                         curr_doorstate = closing;
                     }
+                    else if (strcmp(doormsg, "TakeFive") == 0)
+                    {
+                        curr_doorstate = take_five;
+                    }
+                     prev_doorstate = open;
                 }
-
-                prev_doorstate = open;
-                SignalDoorDone();
+                    
                 break;
             case opening:
                 setLED(1,1);
                 setLED(2,1);
                 setLED(3,1);
                 setLED(4,1);
-                SignalJustKiddingDoorNotDone();
+                //SignalJustKiddingDoorNotDone();
                 
                 for(i = 1; i <= 4; i++)
                 {
@@ -162,15 +151,15 @@ static void DoorControlTask()
                      if  (!readLed(1))
                      {  setLED(1,1);  vTaskDelay(500/portTICK_PERIOD_MS);}
                         curr_doorstate = closed;
-                        prev_doorstate = closing;
-
-                       //  SignalDoorDone();
+                        prev_doorstate = closing;                       
                  }
                  else
                  {
+
                      curr_doorstate = open;
                      prev_doorstate = opening;
                  }
+                SignalDoorDone();
                 break;
                 
             case closing:
@@ -203,7 +192,6 @@ static void DoorControlTask()
                      curr_doorstate = open;
                      prev_doorstate = opening;
 
-
                     //  SignalDoorDone(); // So done.
                 }
                 else
@@ -212,6 +200,7 @@ static void DoorControlTask()
                     prev_doorstate = curr_doorstate;
                // SignalDoorDone();
                 }
+                SignalDoorDone();
                 break;
 
             case emergency:
@@ -232,7 +221,12 @@ static void DoorControlTask()
                 }   
                 
                 break;
-                
+            case take_five:
+                SignalJustKiddingDoorNotDone();
+                vTaskDelay(5000/portTICK_PERIOD_MS);
+                SignalDoorDone();
+                curr_doorstate = prev_doorstate;
+                break;
             default:
                 curr_doorstate = open;
                 break;
